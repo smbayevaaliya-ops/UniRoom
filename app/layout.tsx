@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
 import Footer from "@/components/Footer";
 
 const inter = Inter({
@@ -24,9 +24,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-   <html lang="ru" className={inter.variable + " h-full antialiased"}>
+    <html lang="ru" className={inter.variable + " h-full antialiased"}>
       <body className="flex min-h-full flex-col">
-        <Header />
+        <Sidebar />
         <main className="flex-1">{children}</main>
         <Footer />
       </body>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -8,7 +9,7 @@ const navigation = [
   { name: "Главная", href: "/" },
   { name: "Аудитории", href: "/classrooms" },
   { name: "Расписание", href: "/schedule" },
-  { name: "Бронирование", href: "/booking" },
+  { name: "Бронирование", href: "/book" },
   { name: "Мои заявки", href: "/requests" },
   { name: "Админ-панель", href: "/admin" },
 ];
@@ -76,9 +77,27 @@ export default function Sidebar() {
         </nav>
 
         <div className="mt-auto border-t border-white/10 pt-5">
-          <p className="text-sm font-medium">UniRoom</p>
-          <p className="mt-1 text-xs text-slate-500">
-            Система управления аудиториями
+          <Link
+            href="/profile"
+            onClick={() => setIsOpen(false)}
+            className="flex items-center gap-3 rounded-xl bg-white/5 p-3 transition hover:bg-white/10"
+          >
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-lg font-semibold text-white">
+              П
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">
+                Пользователь
+              </p>
+              <p className="text-xs text-slate-400">Студент</p>
+            </div>
+
+            <span className="text-slate-400">›</span>
+          </Link>
+
+          <p className="mt-4 text-center text-xs text-slate-500">
+            UniRoom · University workspace
           </p>
         </div>
       </aside>
