@@ -1,21 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin", "cyrillic"],
 });
 
 export const metadata: Metadata = {
-  title: "UniRoom — University Workspace",
-  description: "Система поиска и бронирования университетских аудиторий",
+  title: {
+    default: "UniRoom — бронирование аудиторий",
+    template: "%s | UniRoom",
+  },
+  description:
+    "UniRoom — университетская система просмотра расписания, поиска свободных аудиторий и подачи заявок на бронирование.",
 };
 
 export default function RootLayout({
@@ -24,10 +24,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="min-h-screen bg-[#f5f7fb] font-sans text-slate-900">
-        <Sidebar />
-        {children}
+    <html lang="ru" className={${inter.variable} h-full antialiased}>
+      <body className="flex min-h-full flex-col">
+        <Header />
+        <main className="flex-1">{children}</main>
+        <Footer />
       </body>
     </html>
   );
