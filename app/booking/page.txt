@@ -1,0 +1,192 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getSession } from "@/lib/auth";
+import { getRequests, saveRequests, rooms } from "@/lib/data";
+
+export default function BookingPage() {
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("student");
+  const [room, setRoom] = useState("807");
+  const [date, setDate] = useState("");
+  const [start, setStart] = useState("10:00");
+  const [end, setEnd] = useState("11:00");
+  const [people, setPeople] = useState("1");
+  const [purpose, setPurpose] = useState("");
+  const [today, setToday] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const session = getSession();
+
+    if (session) {
+      setName(session.name);
+      setRole(session.role);
+    }
+
+    setToday(new Date().toISOString().slice(0, 10));
+  }, []);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setMessage("");
+
+    if (end <= start) {
+      setMessage("Время окончания должно быть позже времени начала.");
+      return;
+    }
+
+    const requests = getRequests();
+
+    const conflict = requests.some(
+      (request) =>
+        request.room === room &&
+        request.date === date &&
+        request.status !== "Отклонена" &&
+        start < request.end &&
+        end > request.start
+    );
+
+    if (conflict) {
+      setMessage("На это время уже существует заявка на эту аудиторию.");
+      return;
+    }
+
+    const newRequest = {
+      id: crypto.randomUUID(),
+      name,
+      role,
+      room,
+      date,
+      start,
+      end,
+      people: Number(people),
+      purpose,
+      status: "На рассмотрении" as const,
+    };
+
+    saveRequests([newRequest, ...requests]);
+
+    setMessage("Заявка успешно отправлена!");
+    setPurpose("");
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <p className="text-sm font-semibold text-blue-600">
+          Запрос аудитории
+        </p>
+
+        <h1 className="mt-2 text-3xl font-bold">
+          Бронирование
+        </h1>
+
+        <p className="mt-2 text-slate-500">
+          Заполните форму для отправки заявки администратору.
+        </p>
+      </div>
+
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6"
+      >
+        <label className="block text-sm font-medium">
+          Ваше имя
+          <input
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+          />
+        </label>
+
+        <label className="block text-sm font-medium">
+          Аудитория
+          <select
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3"
+          >
+            {rooms.map((item) => (
+              <option key={item.number} value={item.number}>
+                {item.number} — {item.type}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block text-sm font-medium">
+          Дата
+          <input
+            required
+            type="date"
+            min={today}
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+          />
+        </label>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium">
+            Время начала
+            <input
+              required
+              type="time"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+            />
+          </label>
+
+          <label className="block text-sm font-medium">
+            Время окончания
+            <input
+              required
+              type="time"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+            />
+          </label>
+        </div>
+
+        <label className="block text-sm font-medium">
+          Количество человек
+          <input
+            required
+            type="number"
+            min="1"
+            max="100"
+            value={people}
+            onChange={(e) => setPeople(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+          />
+        </label>
+
+        <label className="block text-sm font-medium">
+          Цель бронирования
+          <textarea
+            required
+            rows={4}
+            value={purpose}
+            onChange={(e) => setPurpose(e.target.value)}
+            placeholder="Укажите цель использования аудитории"
+            className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3"
+          />
+        </label>
+
+        {message && (
+          <p className="rounded-xl bg-blue-50 p-3 text-sm text-blue-700">
+            {message}
+          </p>
+        )}
+
+        <button className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-500">
+          Отправить заявку
+        </button>
+      </form>
+    </div>
+  );
+}

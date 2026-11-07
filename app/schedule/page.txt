@@ -1,0 +1,112 @@
+"use client";
+
+import { useState } from "react";
+import { lessons } from "@/lib/data";
+
+const days = [
+  "Понедельник",
+  "Вторник",
+  "Среда",
+  "Четверг",
+  "Пятница",
+  "Суббота",
+];
+
+export default function SchedulePage() {
+  const [selectedDay, setSelectedDay] = useState("Понедельник");
+  const [search, setSearch] = useState("");
+
+  const filteredLessons = lessons.filter((lesson) => {
+    const matchesDay = lesson.day === selectedDay;
+
+    const matchesSearch =
+      lesson.subject.toLowerCase().includes(search.toLowerCase()) ||
+      lesson.teacher.toLowerCase().includes(search.toLowerCase()) ||
+      lesson.room.includes(search);
+
+    return matchesDay && matchesSearch;
+  });
+
+  return (
+    <div className="space-y-7">
+      <div>
+        <p className="text-sm font-semibold text-blue-600">
+          Учебный процесс
+        </p>
+
+        <h1 className="mt-2 text-3xl font-bold">
+          Расписание
+        </h1>
+
+        <p className="mt-2 text-slate-500">
+          Просмотр занятий и занятости аудиторий.
+        </p>
+      </div>
+
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Поиск по предмету, преподавателю или аудитории"
+        className="w-full max-w-xl rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500"
+      />
+
+      <div className="flex flex-wrap gap-2">
+        {days.map((day) => (
+          <button
+            key={day}
+            onClick={() => setSelectedDay(day)}
+            className={`rounded-xl px-4 py-2 text-sm font-medium ${
+              selectedDay === day
+                ? "bg-slate-900 text-white"
+                : "border border-slate-200 bg-white hover:bg-slate-50"
+            }`}
+          >
+            {day}
+          </button>
+        ))}
+      </div>
+
+      {filteredLessons.length > 0 ? (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          {filteredLessons.map((lesson) => (
+            <div
+              key={lesson.id}
+              className="grid gap-3 border-b border-slate-100 p-5 last:border-0 md:grid-cols-3"
+            >
+              <div className="font-semibold text-blue-600">
+                {lesson.time}
+              </div>
+
+              <div>
+                <h2 className="font-semibold">
+                  {lesson.subject}
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {lesson.teacher} · {lesson.type}
+                </p>
+              </div>
+
+              <div className="text-sm text-slate-600">
+                Аудитория:{" "}
+                <span className="font-bold text-slate-900">
+                  {lesson.room}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <h2 className="font-semibold">
+            Занятий не найдено
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-500">
+            На выбранный день пока нет записей.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

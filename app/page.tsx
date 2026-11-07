@@ -1,88 +1,144 @@
 
 import Link from "next/link";
-import Header from "@/components/Header";
+
+const stats = [
+  { label: "Всего аудиторий", value: "48", note: "В университете" },
+  { label: "Свободно сейчас", value: "16", note: "Доступны для занятий" },
+  { label: "Занято", value: "32", note: "По текущему расписанию" },
+  { label: "Мои заявки", value: "03", note: "Ожидают рассмотрения" },
+];
+
+const rooms = [
+  { number: "101", type: "Лекционная", capacity: "30 мест", building: "Корпус A", status: "Свободна" },
+  { number: "204", type: "Учебная", capacity: "20 мест", building: "Корпус A", status: "Занята" },
+  { number: "305", type: "Лекционная", capacity: "40 мест", building: "Корпус B", status: "Свободна" },
+];
+
+const activities = [
+  { time: "09:00", title: "Основы программирования", room: "Аудитория 204", status: "Занятие" },
+  { time: "11:00", title: "Базы данных", room: "Аудитория 305", status: "Занятие" },
+  { time: "14:00", title: "Свободное время", room: "Аудитория 101", status: "Свободно" },
+];
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <main className="min-h-screen bg-[#f7f8fa] px-6 pb-12 pt-8 md:px-10 lg:px-12">
+      <div className="mx-auto max-w-[1440px]">
 
-      <main>
-        <section className="mx-auto flex max-w-7xl flex-col items-center px-6 py-28 text-center">
-          <span className="mb-6 rounded-full bg-blue-100 px-4 py-2 text-sm font-medium text-blue-900">
-            Университетская система бронирования
-          </span>
+        <header className="mb-10 flex flex-col justify-between gap-5 border-b border-slate-200 pb-7 md:flex-row md:items-center">
+          <div className="pl-14 md:pl-14">
+            <p className="text-sm font-medium text-slate-500">UNIVERSITY WORKSPACE</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+              Обзор
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Управление аудиториями и учебным пространством
+            </p>
+          </div>
 
-          <h1 className="max-w-4xl text-5xl font-bold leading-tight text-gray-900">
-            Найди свободную аудиторию
-            <span className="text-blue-800"> за пару кликов</span>
-          </h1>
+          <div className="flex items-center gap-3">
+            <div className="hidden text-right sm:block">
+              <p className="text-sm font-semibold text-slate-800">Личный кабинет</p>
+              <p className="text-xs text-slate-500">Студент</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700">
+              U
+            </div>
+          </div>
+        </header>
 
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-gray-600">
-            UniRoom помогает студентам и преподавателям просматривать
-            расписание, находить свободные аудитории и отправлять
-            заявки на бронирование.
-          </p>
-
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/classrooms"
-              className="rounded-lg bg-blue-900 px-7 py-4 font-semibold text-white transition hover:bg-blue-800"
-            >
-              Посмотреть аудитории
-            </Link>
-
-            <Link
-              href="/schedule"
-              className="rounded-lg border border-gray-300 bg-white px-7 py-4 font-semibold text-gray-700 transition hover:bg-gray-100"
-            >
-              Посмотреть расписание
-            </Link>
+        <section className="mb-8 rounded-2xl bg-[#172b4d] p-7 text-white md:p-9">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-200">
+              Система аудиторного пространства
+            </p>
+            <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-tight md:text-4xl">
+              Найдите подходящее пространство для занятий
+            </h2>
+            <p className="mt-4 max-w-xl text-sm leading-6 text-slate-300">
+              Проверяйте доступность помещений, изучайте расписание
+              и отправляйте заявки на бронирование в одном месте.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/classrooms" className="rounded-lg bg-white px-5 py-3 text-sm font-semibold text-[#172b4d] transition hover:bg-blue-50">
+                Найти аудиторию
+              </Link>
+              <Link href="/schedule" className="rounded-lg border border-white/25 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+                Открыть расписание
+              </Link>
+            </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-6 pb-24">
-          <h2 className="mb-10 text-center text-3xl font-bold text-gray-900">
-            Возможности UniRoom
-          </h2>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
-              <div className="mb-4 text-3xl">🏫</div>
-              <h3 className="mb-3 text-xl font-semibold text-gray-900">
-                Список аудиторий
-              </h3>
-              <p className="leading-7 text-gray-600">
-                Просматривай аудитории, их вместимость и оборудование.
-              </p>
+        <section className="mb-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {stats.map((stat) => (
+            <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-5">
+              <p className="text-sm font-medium text-slate-500">{stat.label}</p>
+              <p className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">{stat.value}</p>
+              <p className="mt-2 text-xs text-slate-400">{stat.note}</p>
             </div>
-
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
-              <div className="mb-4 text-3xl">📅</div>
-              <h3 className="mb-3 text-xl font-semibold text-gray-900">
-                Расписание
-              </h3>
-              <p className="leading-7 text-gray-600">
-                Узнавай, какие аудитории заняты и какие свободны.
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-white p-8 shadow-sm">
-              <div className="mb-4 text-3xl">📝</div>
-              <h3 className="mb-3 text-xl font-semibold text-gray-900">
-                Бронирование
-              </h3>
-              <p className="leading-7 text-gray-600">
-                Отправляй заявки на бронирование аудиторий.
-              </p>
-            </div>
-          </div>
+          ))}
         </section>
-      </main>
 
-      <footer className="border-t border-gray-200 bg-white py-6 text-center text-sm text-gray-500">
-        © 2026 UniRoom. Университетская система бронирования аудиторий.
-      </footer>
-    </div>
+        <div className="grid gap-8 xl:grid-cols-[1.4fr_1fr]">
+          <section>
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Аудитории</h2>
+                <p className="mt-1 text-sm text-slate-500">Текущая доступность помещений</p>
+              </div>
+              <Link href="/classrooms" className="text-sm font-semibold text-blue-700 hover:text-blue-900">
+                Все аудитории →
+              </Link>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              {rooms.map((room, index) => (
+                <div key={room.number} className={`flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center ${index !== rooms.length - 1 ? "border-b border-slate-100" : ""}`}>
+                  <div>
+                    <p className="font-semibold text-slate-900">Аудитория {room.number}</p>
+                    <p className="mt-1 text-sm text-slate-500">{room.type} · {room.capacity} · {room.building}</p>
+                  </div>
+                  <span className={`w-fit rounded-md px-3 py-1.5 text-xs font-semibold ${room.status === "Свободна" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                    {room.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold text-slate-900">Расписание на сегодня</h2>
+              <p className="mt-1 text-sm text-slate-500">Пример учебной активности</p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              {activities.map((activity, index) => (
+                <div key={activity.time} className="flex gap-4">
+                  <div className="w-14 shrink-0 pt-1 text-sm font-semibold text-slate-500">
+                    {activity.time}
+                  </div>
+                  <div className={`relative flex-1 pb-6 ${index !== activities.length - 1 ? "border-l border-slate-200 pl-5" : "pl-5"}`}>
+                    <div className="absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full bg-blue-600 ring-4 ring-white" />
+                    <p className="text-sm font-semibold text-slate-800">{activity.title}</p>
+                    <p className="mt-1 text-xs text-slate-500">{activity.room}</p>
+                    <p className="mt-2 text-xs font-medium text-blue-700">{activity.status}</p>
+                  </div>
+                </div>
+              ))}
+              <Link href="/schedule" className="mt-2 block rounded-lg border border-slate-200 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                Полное расписание
+              </Link>
+            </div>
+          </section>
+        </div>
+
+        <footer className="mt-12 border-t border-slate-200 pt-6 text-xs text-slate-400">
+          UniRoom · University Workspace · 2026
+        </footer>
+      </div>
+    </main>
   );
 }
+
