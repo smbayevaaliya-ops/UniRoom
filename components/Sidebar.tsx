@@ -1,9 +1,10 @@
-
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRole, setRole } from "@/lib/role-store";
+import type { UserRole } from "@/lib/types";
 
 const navigation = [
   { name: "Главная", href: "/" },
@@ -11,19 +12,43 @@ const navigation = [
   { name: "Расписание", href: "/schedule" },
   { name: "Бронирование", href: "/book" },
   { name: "Мои заявки", href: "/requests" },
-  { name: "Админ-панель", href: "/admin" },
 ];
+
+const roleNames: Record<UserRole, string> = {
+  STUDENT: "Студент",
+  TEACHER: "Преподаватель",
+  ADMIN: "Администратор",
+};
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const role = useRole();
+
+  const changeRole = (newRole: UserRole) => {
+    setRole(newRole);
+
+    if (newRole === "STUDENT" && pathname === "/admin") {
+      router.push("/");
+    }
+
+    setIsOpen(false);
+  };
+
+  const items = [
+    ...navigation,
+    ...(role !== "STUDENT"
+      ? [{ name: "Админ-панель", href: "/admin" }]
+      : []),
+  ];
 
   return (
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Открыть меню"
-        className="fixed left-6 top-5 z-[70] flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-2xl text-slate-800 shadow-sm transition hover:bg-slate-50"
+        className="fixed left-6 top-5 z-[70] flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-2xl text-slate-800 shadow-sm"
       >
         {isOpen ? "×" : "☰"}
       </button>
@@ -32,7 +57,7 @@ export default function Sidebar() {
         <button
           aria-label="Закрыть меню"
           onClick={() => setIsOpen(false)}
-          className="fixed inset-0 z-50 cursor-default bg-slate-950/30"
+          className="fixed inset-0 z-50 bg-slate-950/30"
         />
       )}
 
@@ -45,6 +70,7 @@ export default function Sidebar() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-lg font-bold">
             U
           </div>
+
           <div>
             <p className="text-xl font-bold">UniRoom</p>
             <p className="text-xs text-slate-400">University workspace</p>
@@ -56,7 +82,7 @@ export default function Sidebar() {
         </p>
 
         <nav className="space-y-1">
-          {navigation.map((item) => {
+          {items.map((item) => {
             const active = pathname === item.href;
 
             return (
@@ -77,28 +103,38 @@ export default function Sidebar() {
         </nav>
 
         <div className="mt-auto border-t border-white/10 pt-5">
+          <div className="rounded-xl bg-white/5 p-3">
+            <p className="mb-2 text-xs text-slate-400">
+              Текущая роль
+            </p>
+
+            <select
+              value={role}
+              onChange={(e) => changeRole(e.target.value as UserRole)}
+              className="w-full rounded-lg border border-white/10 bg-[#1f2937] p-2 text-sm text-white outline-none"
+            >
+              <option value="STUDENT">Студент</option>
+              <option value="TEACHER">Преподаватель</option>
+              <option value="ADMIN">Администратор</option>
+            </select>
+          </div>
+
           <Link
             href="/profile"
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 rounded-xl bg-white/5 p-3 transition hover:bg-white/10"
+            className="mt-3 flex items-center gap-3 rounded-xl bg-white/5 p-3"
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-lg font-semibold text-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-lg font-semibold">
               П
             </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white">
-                Пользователь
+            <div>
+              <p className="text-sm font-semibold">Пользователь</p>
+              <p className="text-xs text-slate-400">
+                {roleNames[role]}
               </p>
-              <p className="text-xs text-slate-400">Студент</p>
             </div>
-
-            <span className="text-slate-400">›</span>
           </Link>
-
-          <p className="mt-4 text-center text-xs text-slate-500">
-            UniRoom · University workspace
-          </p>
         </div>
       </aside>
     </>
