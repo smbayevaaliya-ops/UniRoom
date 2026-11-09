@@ -1,6 +1,22 @@
-export type Tone = "neutral" | "success" | "danger" | "warning" | "info";
+export type Tone =
+  | "neutral"
+  | "success"
+  | "danger"
+  | "warning"
+  | "info";
 
-export type UserRole = "STUDENT" | "TEACHER" | "ADMIN";
+export type UserRole =
+  | "STUDENT"
+  | "TEACHER"
+  | "ADMIN"
+  | "MODERATOR";
+
+export type Building = {
+  id: string;
+  name: string;
+  floors: number;
+  address: string;
+};
 
 export type Classroom = {
   number: string;
@@ -9,6 +25,9 @@ export type Classroom = {
   type: string;
   equipment: string[];
   active: boolean;
+  buildingId: string;
+  floor: number;
+  computerCount: number;
 };
 
 export type Lesson = {

@@ -151,7 +151,7 @@ export default function ClassroomsView() {
               end,
             });
             return (
-              <Card key={room.number} className="flex flex-col p-5">
+             <Card key={`${room.buildingId}-${room.number}`} className="flex flex-col p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">

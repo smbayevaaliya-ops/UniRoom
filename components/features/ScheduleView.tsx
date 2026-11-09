@@ -89,7 +89,10 @@ export default function ScheduleView() {
           >
             <option value="all">Все аудитории</option>
             {rooms.map((room) => (
-              <option key={room.number} value={room.number}>
+              <option
+  key={`${room.buildingId}-${room.number}`}
+  value={`${room.buildingId}-${room.number}`}
+>
                 {room.name}
               </option>
             ))}

@@ -1,52 +1,57 @@
 import type { Classroom } from "@/lib/types";
 
+const sixthBuilding: Classroom[] = [];
+
+for (let floor = 2; floor <= 11; floor++) {
+  for (let room = 1; room <= 8; room++) {
+    const number = `${floor}${String(room).padStart(2, "0")}`;
+    const isComputerClass = floor >= 8;
+
+    sixthBuilding.push({
+      number,
+      name: isComputerClass
+        ? `Компьютерный класс ${number}`
+        : `Лекционная аудитория ${number}`,
+      capacity: isComputerClass
+        ? 15 + (room % 3) * 5
+        : 30 + (room % 6) * 10,
+      type: isComputerClass
+        ? "Компьютерный класс"
+        : "Лекционная",
+      equipment: isComputerClass
+        ? ["Компьютеры", "Проектор", "Доска"]
+        : ["Проектор", "Доска"],
+      active: true,
+      buildingId: "building-6",
+      floor,
+      computerCount: isComputerClass
+        ? 15 + (room % 3) * 5
+        : 0,
+    });
+  }
+}
+
+const firstBuilding: Classroom[] = [];
+
+for (let floor = 1; floor <= 5; floor++) {
+  for (let room = 1; room <= 5; room++) {
+    const number = `${floor}0${room}`;
+
+    firstBuilding.push({
+      number,
+      name: `Лекционная аудитория ${number}`,
+      capacity: 20 + (room % 5) * 10,
+      type: "Лекционная",
+      equipment: ["Проектор", "Доска"],
+      active: true,
+      buildingId: "building-1",
+      floor,
+      computerCount: 0,
+    });
+  }
+}
+
 export const classrooms: Classroom[] = [
-  {
-    number: "101",
-    name: "Аудитория 101",
-    capacity: 30,
-    type: "Лекционная",
-    equipment: ["Проектор", "Доска", "Компьютеры"],
-    active: true,
-  },
-  {
-    number: "204",
-    name: "Аудитория 204",
-    capacity: 20,
-    type: "Учебная",
-    equipment: ["Проектор", "Доска"],
-    active: true,
-  },
-  {
-    number: "305",
-    name: "Аудитория 305",
-    capacity: 40,
-    type: "Лекционная",
-    equipment: ["Проектор", "Компьютеры"],
-    active: true,
-  },
-  {
-    number: "412",
-    name: "Аудитория 412",
-    capacity: 15,
-    type: "Компьютерный класс",
-    equipment: ["Компьютеры", "Проектор"],
-    active: true,
-  },
-  {
-    number: "508",
-    name: "Аудитория 508",
-    capacity: 25,
-    type: "Учебная",
-    equipment: ["Доска", "Проектор"],
-    active: true,
-  },
-  {
-    number: "601",
-    name: "Аудитория 601",
-    capacity: 35,
-    type: "Лекционная",
-    equipment: ["Проектор", "Доска"],
-    active: true,
-  },
+  ...sixthBuilding,
+  ...firstBuilding,
 ];
