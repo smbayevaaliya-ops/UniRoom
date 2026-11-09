@@ -1,17 +1,11 @@
-import type { Metadata } from "next";
 import ClassroomsView from "@/components/features/ClassroomsView";
-import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
-
-export const metadata: Metadata = { title: "Аудитории" };
 
 export default function ClassroomsPage() {
   return (
-    <PageContainer>
-      <PageHeader
-        title="Аудитории"
-        description="Выберите дату и время, чтобы увидеть, какие аудитории свободны, и подайте заявку на бронирование."
-      />
-      <ClassroomsView />
-    </PageContainer>
+    <main className="min-h-screen bg-gray-50 px-4 py-8">
+      <div className="mx-auto max-w-7xl">
+        <ClassroomsView />
+      </div>
+    </main>
   );
 }

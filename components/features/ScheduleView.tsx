@@ -1,239 +1,195 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { findConflicts } from "@/lib/availability";
-import { WORKDAY_END, WORKDAY_START } from "@/lib/constants";
-import { useOccupations, useRooms } from "@/lib/stores";
-import { formatDate, formatDateShort } from "@/lib/time";
+
+import { useBuildings, useOccupations, useRooms } from "@/lib/stores";
+import { useRole } from "@/lib/role-store";
 import { useToday } from "@/lib/use-today";
-import { validateInterval } from "@/lib/validation";
-import { Alert } from "@/components/ui/Alert";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { SelectField, TextField } from "@/components/ui/Field";
-import { StatCard } from "@/components/ui/StatCard";
-import { Table, THead, Td, Th, Tr } from "@/components/ui/Table";
 
 export default function ScheduleView() {
-  const today = useToday();
-  const rooms = useRooms();
   const occupations = useOccupations();
+  const rooms = useRooms();
+  const buildings = useBuildings();
+  const role = useRole();
+  const today = useToday();
 
-  const [dateInput, setDateInput] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [buildingFilter, setBuildingFilter] = useState("all");
   const [roomFilter, setRoomFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const [start, setStart] = useState(WORKDAY_START);
-  const [end, setEnd] = useState(WORKDAY_END);
 
-  const date = dateInput || today;
-  const intervalError = validateInterval(start, end);
+  const date = selectedDate || today;
 
-  const datesWithData = useMemo(
-    () => [...new Set(occupations.map((item) => item.date))].sort(),
-    [occupations],
-  );
-
-  const rows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return occupations
-      .filter((item) => item.date === date)
-      .filter((item) => roomFilter === "all" || item.room === roomFilter)
-      .filter(
-        (item) =>
-          !query ||
-          [item.title, item.group, item.owner].some((value) =>
-            value.toLowerCase().includes(query),
-          ),
-      )
-      .sort(
-        (a, b) => a.start.localeCompare(b.start) || a.room.localeCompare(b.room),
-      );
-  }, [occupations, date, roomFilter, search]);
-
-  const { freeRooms, busyCount } = useMemo(() => {
-    const bookable = rooms.filter((room) => room.active);
-    if (!date || intervalError) return { freeRooms: [], busyCount: 0 };
-    const free = bookable.filter(
+  const filteredRooms = useMemo(() => {
+    return rooms.filter(
       (room) =>
-        findConflicts(occupations, { room: room.number, date, start, end })
-          .length === 0,
+        buildingFilter === "all" ||
+        room.buildingId === buildingFilter,
     );
-    return { freeRooms: free, busyCount: bookable.length - free.length };
-  }, [rooms, occupations, date, start, end, intervalError]);
+  }, [rooms, buildingFilter]);
 
-  if (!date) {
-    return (
-      <Card>
-        <EmptyState title="Загрузка расписания…" />
-      </Card>
+  const filteredOccupations = useMemo(() => {
+    if (!date) return [];
+
+    return occupations
+      .filter((item) => {
+        if (item.date !== date) return false;
+
+        const room = rooms.find(
+          (currentRoom) => currentRoom.id === item.roomId,
+        );
+
+        if (!room) return false;
+
+        if (
+          buildingFilter !== "all" &&
+          room.buildingId !== buildingFilter
+        ) {
+          return false;
+        }
+
+        if (roomFilter !== "all" && room.id !== roomFilter) {
+          return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const timeComparison = a.start.localeCompare(b.start);
+
+        if (timeComparison !== 0) return timeComparison;
+
+        return a.roomId.localeCompare(b.roomId);
+      });
+  }, [occupations, rooms, date, buildingFilter, roomFilter]);
+
+  function roomDetails(roomId: string) {
+    const room = rooms.find((item) => item.id === roomId);
+
+    if (!room) return "Аудитория не найдена";
+
+    const building = buildings.find(
+      (item) => item.id === room.buildingId,
     );
+
+    return `${building?.name || "Корпус"} · ${room.floor} этаж · №${room.number}`;
   }
 
   return (
     <div className="space-y-6">
-      <Card className="p-5">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <TextField
-            label="Дата"
-            type="date"
-            value={date}
-            onChange={(event) => setDateInput(event.target.value)}
-          />
-          <SelectField
-            label="Аудитория"
-            value={roomFilter}
-            onChange={(event) => setRoomFilter(event.target.value)}
-          >
-            <option value="all">Все аудитории</option>
-            {rooms.map((room) => (
-              <option
-  key={`${room.buildingId}-${room.number}`}
-  value={`${room.buildingId}-${room.number}`}
->
-                {room.name}
-              </option>
-            ))}
-          </SelectField>
-          <TextField
-            label="Начало интервала"
-            type="time"
-            min={WORKDAY_START}
-            max={WORKDAY_END}
-            value={start}
-            onChange={(event) => setStart(event.target.value)}
-          />
-          <TextField
-            label="Конец интервала"
-            type="time"
-            min={WORKDAY_START}
-            max={WORKDAY_END}
-            value={end}
-            onChange={(event) => setEnd(event.target.value)}
-          />
-          <TextField
-            label="Поиск"
-            type="search"
-            placeholder="Предмет, группа, преподаватель"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">Расписание</h1>
 
-        {datesWithData.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-            <span className="text-sm text-slate-500">Даты с занятиями:</span>
-            {datesWithData.map((item) => (
-              <Button
-                key={item}
-                size="sm"
-                variant={item === date ? "primary" : "secondary"}
-                onClick={() => setDateInput(item)}
-              >
-                {formatDateShort(item)}
-              </Button>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {intervalError && (
-        <Alert tone="warning" title="Интервал указан неверно">
-          {intervalError}
-        </Alert>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Записей на выбранную дату" value={occupations.filter((item) => item.date === date).length} tone="info" />
-        <StatCard label="Занято в выбранном интервале" value={busyCount} tone="danger" />
-        <StatCard label="Свободно в выбранном интервале" value={freeRooms.length} tone="success" />
+        <p className="mt-1 text-sm text-gray-500">
+          Занятость аудиторий по выбранной дате.
+        </p>
       </div>
 
-      <Card className="p-5">
-        <h2 className="text-lg font-bold text-slate-900">
-          Свободные аудитории, {start}–{end}
-        </h2>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {freeRooms.length > 0 ? (
-            freeRooms.map((room) => {
-              const params = new URLSearchParams({
-                room: room.number,
-                date,
-                start,
-                end,
-              });
-              return (
-                <Link
-                  key={room.number}
-                  href={`/book?${params.toString()}`}
-                  className="rounded-lg bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
-                >
-                  Аудитория {room.number}
-                </Link>
-              );
-            })
-          ) : (
-            <p className="text-sm text-slate-500">
-              {intervalError
-                ? "Исправьте интервал, чтобы увидеть свободные аудитории."
-                : "В выбранном интервале свободных аудиторий нет."}
-            </p>
-          )}
-        </div>
-        {freeRooms.length > 0 && (
-          <p className="mt-3 text-xs text-slate-500">
-            Нажмите на аудиторию, чтобы перейти к заявке на бронирование.
-          </p>
-        )}
-      </Card>
+      <div className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-3">
+        <input
+          type="date"
+          value={date}
+          min={today || undefined}
+          onChange={(event) => setSelectedDate(event.target.value)}
+          className="rounded-xl border px-3 py-3"
+        />
 
-      <Card className="overflow-hidden">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="text-lg font-bold text-slate-900">
-            Занятость на {formatDate(date)}
-          </h2>
+        <select
+          value={buildingFilter}
+          onChange={(event) => {
+            setBuildingFilter(event.target.value);
+            setRoomFilter("all");
+          }}
+          className="rounded-xl border px-3 py-3"
+        >
+          <option value="all">Все корпуса</option>
+
+          {buildings.map((building) => (
+            <option key={building.id} value={building.id}>
+              {building.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={roomFilter}
+          onChange={(event) => setRoomFilter(event.target.value)}
+          className="rounded-xl border px-3 py-3"
+        >
+          <option value="all">Все аудитории</option>
+
+          {filteredRooms.map((room) => {
+            const building = buildings.find(
+              (item) => item.id === room.buildingId,
+            );
+
+            return (
+              <option key={room.id} value={room.id}>
+                {building?.name || "Корпус"} · №{room.number} · {room.floor} этаж
+              </option>
+            );
+          })}
+        </select>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border bg-white">
+        <div className="grid grid-cols-[110px_1fr] border-b bg-gray-50 p-4 text-sm font-semibold">
+          <span>Время</span>
+          <span>Занятость</span>
         </div>
 
-        {rows.length > 0 ? (
-          <Table>
-            <THead>
-              <tr>
-                <Th>Время</Th>
-                <Th>Аудитория</Th>
-                <Th>Тип</Th>
-                <Th>Название</Th>
-                <Th>Группа</Th>
-                <Th>Преподаватель / заявитель</Th>
-              </tr>
-            </THead>
-            <tbody>
-              {rows.map((item) => (
-                <Tr key={item.id}>
-                  <Td className="whitespace-nowrap font-medium text-slate-900">
-                    {item.start}–{item.end}
-                  </Td>
-                  <Td>{item.room}</Td>
-                  <Td>
-                    <Badge tone={item.kind === "LESSON" ? "info" : "success"}>
-                      {item.kind === "LESSON" ? "Занятие" : "Бронь"}
-                    </Badge>
-                  </Td>
-                  <Td>{item.title}</Td>
-                  <Td>{item.group}</Td>
-                  <Td>{item.owner}</Td>
-                </Tr>
-              ))}
-            </tbody>
-          </Table>
+        {filteredOccupations.length === 0 ? (
+          <div className="p-8 text-center text-sm text-gray-500">
+            На выбранную дату занятий и подтверждённых бронирований нет.
+          </div>
         ) : (
-          <EmptyState
-            title="Занятий не найдено"
-            description="На выбранную дату нет занятий по указанным параметрам. Выберите одну из дат с занятиями выше."
-          />
+          filteredOccupations.map((item) => (
+            <div
+              key={item.id}
+              className="grid grid-cols-[110px_1fr] gap-3 border-b p-4 last:border-0"
+            >
+              <div className="text-sm font-semibold">
+                {item.start}
+
+                <span className="block font-normal text-gray-500">
+                  {item.end}
+                </span>
+              </div>
+
+              <div>
+                <div className="font-medium">
+                  {roomDetails(item.roomId)}
+                </div>
+
+                {role === "STUDENT" ? (
+                  <p className="mt-1 text-sm text-gray-500">
+                    Аудитория занята
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-1 text-sm">{item.title}</p>
+
+                    <p className="text-sm text-gray-500">
+                      {item.group} · {item.owner}
+                    </p>
+                  </>
+                )}
+
+                <span
+                  className={`mt-2 inline-block rounded-full px-2 py-1 text-xs ${
+                    item.kind === "LESSON"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-green-100 text-green-700"
+                  }`}
+                >
+                  {item.kind === "LESSON"
+                    ? "Занятие"
+                    : "Бронирование"}
+                </span>
+              </div>
+            </div>
+          ))
         )}
-      </Card>
+      </div>
     </div>
   );
 }

@@ -2,12 +2,13 @@ import type { Classroom } from "@/lib/types";
 
 const sixthBuilding: Classroom[] = [];
 
-for (let floor = 2; floor <= 11; floor++) {
+for (let floor = 1; floor <= 11; floor++) {
   for (let room = 1; room <= 8; room++) {
     const number = `${floor}${String(room).padStart(2, "0")}`;
     const isComputerClass = floor >= 8;
 
     sixthBuilding.push({
+      id: `building-6-${number}`,
       number,
       name: isComputerClass
         ? `Компьютерный класс ${number}`
@@ -38,6 +39,7 @@ for (let floor = 1; floor <= 5; floor++) {
     const number = `${floor}0${room}`;
 
     firstBuilding.push({
+      id: `building-1-${number}`,
       number,
       name: `Лекционная аудитория ${number}`,
       capacity: 20 + (room % 5) * 10,

@@ -131,7 +131,7 @@ export default function Sidebar() {
             <div>
               <p className="text-sm font-semibold">Пользователь</p>
               <p className="text-xs text-slate-400">
-                {roleNames[role]}
+                {roleNames[role as UserRole]}
               </p>
             </div>
           </Link>

@@ -1,227 +1,318 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { findConflicts, getRoomDay } from "@/lib/availability";
-import { WORKDAY_END, WORKDAY_START } from "@/lib/constants";
-import { useOccupations, useRooms } from "@/lib/stores";
-import { formatDate } from "@/lib/time";
+import Link from "next/link";
+
+import { useBuildings, useOccupations, useRooms } from "@/lib/stores";
+import { useRole } from "@/lib/role-store";
+import { getRoomDay } from "@/lib/availability";
 import { useToday } from "@/lib/use-today";
-import { validateInterval } from "@/lib/validation";
-import { Alert } from "@/components/ui/Alert";
-import { Badge } from "@/components/ui/Badge";
-import { Button, ButtonLink } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { TextField } from "@/components/ui/Field";
 
 export default function ClassroomsView() {
-  const today = useToday();
   const rooms = useRooms();
+  const buildings = useBuildings();
   const occupations = useOccupations();
+  const role = useRole();
+  const today = useToday();
 
-  const [dateInput, setDateInput] = useState("");
-  const [start, setStart] = useState(WORKDAY_START);
-  const [end, setEnd] = useState(WORKDAY_END);
+  const [buildingFilter, setBuildingFilter] = useState("all");
+  const [floorFilter, setFloorFilter] = useState("all");
+  const [date, setDate] = useState("");
   const [search, setSearch] = useState("");
-  const [minCapacity, setMinCapacity] = useState("");
-  const [onlyFree, setOnlyFree] = useState(false);
 
-  const date = dateInput || today;
-  const intervalError = validateInterval(start, end);
+  const selectedDate = date || today;
 
-  const items = useMemo(() => {
-    if (!date) return [];
-    const query = search.trim().toLowerCase();
-    const min = Number(minCapacity) || 0;
-
-    return rooms
-      .map((room) => {
-        const conflicts = intervalError
-          ? []
-          : findConflicts(occupations, { room: room.number, date, start, end });
-        return {
-          room,
-          conflicts,
-          day: getRoomDay(occupations, room.number, date),
-          free: room.active && !intervalError && conflicts.length === 0,
-        };
-      })
-      .filter(({ room, free }) => {
-        const matchesSearch =
-          !query ||
-          [room.name, room.type, room.number, ...room.equipment].some((value) =>
-            value.toLowerCase().includes(query),
+  const floors = useMemo(() => {
+    const selectedBuildings =
+      buildingFilter === "all"
+        ? buildings
+        : buildings.filter(
+            (building) => building.id === buildingFilter,
           );
-        return (
-          matchesSearch && room.capacity >= min && (!onlyFree || free)
-        );
-      });
-  }, [rooms, occupations, date, start, end, search, minCapacity, onlyFree, intervalError]);
 
-  if (!date) {
+    return Array.from(
+      new Set(
+        selectedBuildings.flatMap((building) =>
+          rooms
+            .filter((room) => room.buildingId === building.id)
+            .map((room) => room.floor),
+        ),
+      ),
+    ).sort((a, b) => a - b);
+  }, [buildingFilter, buildings, rooms]);
+
+  const filteredRooms = useMemo(() => {
+    return rooms
+      .filter((room) => {
+        const matchesBuilding =
+          buildingFilter === "all" ||
+          room.buildingId === buildingFilter;
+
+        const matchesFloor =
+          floorFilter === "all" ||
+          room.floor === Number(floorFilter);
+
+        const searchValue = search.trim().toLowerCase();
+
+        const matchesSearch =
+          room.number.toLowerCase().includes(searchValue) ||
+          room.name.toLowerCase().includes(searchValue);
+
+        return matchesBuilding && matchesFloor && matchesSearch;
+      })
+      .sort((a, b) => {
+        if (a.buildingId !== b.buildingId) {
+          return a.buildingId.localeCompare(b.buildingId);
+        }
+
+        if (a.floor !== b.floor) {
+          return a.floor - b.floor;
+        }
+
+        return a.number.localeCompare(b.number);
+      });
+  }, [rooms, buildingFilter, floorFilter, search]);
+
+  function getBuildingName(buildingId: string) {
     return (
-      <Card>
-        <EmptyState title="Загрузка списка аудиторий…" />
-      </Card>
+      buildings.find((building) => building.id === buildingId)?.name ||
+      "Корпус не указан"
     );
   }
 
+  const roomOccupations = useMemo(() => {
+    if (!selectedDate) return new Map();
+
+    return new Map(
+      filteredRooms.map((room) => [
+        room.id,
+        getRoomDay(occupations, room.id, selectedDate),
+      ]),
+    );
+  }, [filteredRooms, occupations, selectedDate]);
+
+  const totalCount = filteredRooms.length;
+
+  const occupiedCount = filteredRooms.filter((room) => {
+    return (roomOccupations.get(room.id) ?? []).length > 0;
+  }).length;
+
+  const freeCount = filteredRooms.filter((room) => {
+    return (
+      room.active &&
+      (roomOccupations.get(room.id) ?? []).length === 0
+    );
+  }).length;
+
   return (
     <div className="space-y-6">
-      <Card className="p-5">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <TextField
-            label="Дата"
-            type="date"
-            value={date}
-            onChange={(event) => setDateInput(event.target.value)}
-          />
-          <TextField
-            label="Начало"
-            type="time"
-            min={WORKDAY_START}
-            max={WORKDAY_END}
-            value={start}
-            onChange={(event) => setStart(event.target.value)}
-          />
-          <TextField
-            label="Окончание"
-            type="time"
-            min={WORKDAY_START}
-            max={WORKDAY_END}
-            value={end}
-            onChange={(event) => setEnd(event.target.value)}
-          />
-          <TextField
-            label="Минимальная вместимость"
-            type="number"
-            min={0}
-            inputMode="numeric"
-            placeholder="Например, 25"
-            value={minCapacity}
-            onChange={(event) => setMinCapacity(event.target.value)}
-          />
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">Аудитории</h1>
 
-        <div className="mt-4 grid items-end gap-4 sm:grid-cols-2">
-          <TextField
-            label="Поиск"
-            type="search"
-            placeholder="Номер, тип или оборудование"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          <label className="flex items-center gap-2.5 pb-2.5 text-sm font-medium text-slate-700">
-            <input
-              type="checkbox"
-              checked={onlyFree}
-              onChange={(event) => setOnlyFree(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300"
-            />
-            Показывать только свободные
-          </label>
-        </div>
-      </Card>
-
-      {intervalError ? (
-        <Alert tone="warning" title="Статус доступности не рассчитан">
-          {intervalError}
-        </Alert>
-      ) : (
-        <p className="text-sm text-slate-500">
-          Статус рассчитан для {formatDate(date)}, {start}–{end}. Найдено
-          аудиторий: {items.length}.
+        <p className="mt-1 text-sm text-gray-500">
+          Просмотр аудиторий, их оборудования и занятости.
         </p>
-      )}
+      </div>
 
-      {items.length === 0 ? (
-        <Card>
-          <EmptyState
-            title="Аудитории не найдены"
-            description="Измените параметры поиска или выберите другое время."
-          />
-        </Card>
-      ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map(({ room, free, conflicts, day }) => {
-            const params = new URLSearchParams({
-              room: room.number,
-              date,
-              start,
-              end,
-            });
-            return (
-             <Card key={`${room.buildingId}-${room.number}`} className="flex flex-col p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      {room.name}
-                    </h2>
-                    <p className="mt-0.5 text-sm text-slate-500">{room.type}</p>
-                  </div>
-                  {!room.active ? (
-                    <Badge tone="neutral">Недоступна</Badge>
-                  ) : intervalError ? null : conflicts.length > 0 ? (
-                    <Badge tone="danger">Занята</Badge>
-                  ) : (
-                    <Badge tone="success">Свободна</Badge>
-                  )}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border bg-white p-5">
+          <p className="text-sm text-gray-500">
+            Всего аудиторий
+          </p>
+          <p className="mt-2 text-3xl font-bold">
+            {totalCount}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-5">
+          <p className="text-sm text-gray-500">
+            Есть занятия за день
+          </p>
+          <p className="mt-2 text-3xl font-bold text-orange-600">
+            {occupiedCount}
+          </p>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-5">
+          <p className="text-sm text-gray-500">
+            Свободны весь день
+          </p>
+          <p className="mt-2 text-3xl font-bold text-green-600">
+            {freeCount}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-4">
+        <select
+          value={buildingFilter}
+          onChange={(event) => {
+            setBuildingFilter(event.target.value);
+            setFloorFilter("all");
+          }}
+          className="rounded-xl border px-3 py-3"
+        >
+          <option value="all">Все корпуса</option>
+
+          {buildings.map((building) => (
+            <option key={building.id} value={building.id}>
+              {building.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={floorFilter}
+          onChange={(event) => setFloorFilter(event.target.value)}
+          className="rounded-xl border px-3 py-3"
+        >
+          <option value="all">Все этажи</option>
+
+          {floors.map((floor) => (
+            <option key={floor} value={floor}>
+              {floor} этаж
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="date"
+          value={selectedDate}
+          min={today || undefined}
+          onChange={(event) => setDate(event.target.value)}
+          className="rounded-xl border px-3 py-3"
+        />
+
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Поиск аудитории"
+          className="rounded-xl border px-3 py-3"
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {filteredRooms.map((room) => {
+          const roomDay =
+            roomOccupations.get(room.id) ?? [];
+
+          const hasOccupations = roomDay.length > 0;
+
+          return (
+            <article
+              key={room.id}
+              className="rounded-2xl border bg-white p-5 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm text-gray-500">
+                    {getBuildingName(room.buildingId)} · {room.floor} этаж
+                  </p>
+
+                  <h2 className="mt-1 text-xl font-bold">
+                    Аудитория №{room.number}
+                  </h2>
                 </div>
 
-                <p className="mt-4 text-sm text-slate-700">
-                  Вместимость: {room.capacity} чел.
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    !room.active
+                      ? "bg-gray-100 text-gray-600"
+                      : hasOccupations
+                        ? "bg-orange-100 text-orange-700"
+                        : "bg-green-100 text-green-700"
+                  }`}
+                >
+                  {!room.active
+                    ? "Неактивна"
+                    : hasOccupations
+                      ? "Есть занятия"
+                      : "Свободна"}
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-2 text-sm">
+                <p>
+                  <span className="text-gray-500">Тип:</span>{" "}
+                  {room.type}
                 </p>
 
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {room.equipment.map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600"
+                <p>
+                  <span className="text-gray-500">
+                    Вместимость:
+                  </span>{" "}
+                  {room.capacity}
+                </p>
+
+                <p>
+                  <span className="text-gray-500">
+                    Компьютеры:
+                  </span>{" "}
+                  {room.computerCount}
+                </p>
+
+                <p>
+                  <span className="text-gray-500">
+                    Оборудование:
+                  </span>{" "}
+                  {room.equipment.join(", ") || "Не указано"}
+                </p>
+              </div>
+
+              {role !== "STUDENT" && roomDay.length > 0 && (
+                <div className="mt-4 border-t pt-3">
+                  <p className="mb-2 text-sm font-semibold">
+                    Расписание на день
+                  </p>
+
+                  {roomDay.map((item: { id: string; start: string; end: string; title: string; group: string; owner: string }) => (
+                    <div
+                      key={item.id}
+                      className="mb-2 rounded-lg bg-gray-50 p-3 text-sm"
                     >
-                      {item}
-                    </span>
+                      <p className="font-medium">
+                        {item.start}–{item.end}
+                      </p>
+
+                      <p>{item.title}</p>
+
+                      <p className="text-gray-500">
+                        {item.group} · {item.owner}
+                      </p>
+                    </div>
                   ))}
                 </div>
+              )}
 
-                <div className="mt-4 flex-1 border-t border-slate-100 pt-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Занятость на дату
-                  </p>
-                  {day.length === 0 ? (
-                    <p className="mt-1.5 text-sm text-slate-500">
-                      Занятий и броней нет.
-                    </p>
-                  ) : (
-                    <ul className="mt-1.5 space-y-1 text-sm text-slate-600">
-                      {day.map((item) => (
-                        <li key={item.id}>
-                          <span className="font-medium text-slate-800">
-                            {item.start}–{item.end}
-                          </span>{" "}
-                          {item.title}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+              {role === "STUDENT" && hasOccupations && (
+                <p className="mt-4 text-sm text-gray-500">
+                  В этой аудитории есть занятия или бронирования.
+                  Вы можете выбрать другую свободную пару.
+                </p>
+              )}
 
-                <div className="mt-5">
-                  {free ? (
-                    <ButtonLink
-                      href={`/book?${params.toString()}`}
-                      fullWidth
-                    >
-                      Забронировать
-                    </ButtonLink>
-                  ) : (
-                    <Button fullWidth disabled>
-                      {room.active ? "Занята в это время" : "Недоступна"}
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            );
-          })}
+              <Link
+                href={`/book?roomId=${encodeURIComponent(room.id)}`}
+                aria-disabled={!room.active}
+                className={`mt-4 block rounded-xl px-4 py-3 text-center text-sm font-semibold ${
+                  room.active
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "pointer-events-none bg-gray-100 text-gray-400"
+                }`}
+                tabIndex={room.active ? 0 : -1}
+              >
+                {room.active
+                  ? "Забронировать"
+                  : "Аудитория недоступна"}
+              </Link>
+            </article>
+          );
+        })}
+      </div>
+
+      {filteredRooms.length === 0 && (
+        <div className="rounded-2xl border bg-white p-8 text-center text-gray-500">
+          Аудитории не найдены.
         </div>
       )}
     </div>

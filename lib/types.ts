@@ -5,11 +5,7 @@ export type Tone =
   | "warning"
   | "info";
 
-export type UserRole =
-  | "STUDENT"
-  | "TEACHER"
-  | "ADMIN"
-  | "MODERATOR";
+export type UserRole = "STUDENT" | "TEACHER" | "ADMIN";
 
 export type Building = {
   id: string;
@@ -19,6 +15,7 @@ export type Building = {
 };
 
 export type Classroom = {
+  id: string;
   number: string;
   name: string;
   capacity: number;
@@ -36,6 +33,7 @@ export type Lesson = {
   start: string;
   end: string;
   room: string;
+  roomId?: string;
   subject: string;
   group: string;
   teacher: string;
@@ -52,10 +50,22 @@ export type Booking = {
   id: number;
   requester: string;
   room: string;
+  roomId?: string;
+  buildingId?: string;
+  floor?: number;
   date: string;
   start: string;
   end: string;
   purpose: string;
   status: BookingStatus;
   comment?: string;
+  people?: string;
+  createdAt?: string;
+};
+
+export type TimeSlot = {
+  id: number;
+  label: string;
+  start: string;
+  end: string;
 };

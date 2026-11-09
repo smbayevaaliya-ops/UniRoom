@@ -4,30 +4,23 @@ export type Occupation = {
   id: string;
   kind: "LESSON" | "BOOKING";
   room: string;
+  roomId: string;
   date: string;
   start: string;
   end: string;
-  /** Название занятия или цель бронирования */
   title: string;
-  /** Группа (для занятий) */
   group: string;
-  /** Преподаватель (для занятий) или заявитель (для броней) */
   owner: string;
 };
 
 export type OccupationQuery = {
   room: string;
+  roomId?: string;
   date: string;
   start: string;
   end: string;
 };
 
-/**
- * Два интервала HH:MM пересекаются, если каждый начинается раньше,
- * чем заканчивается другой. Интервалы, которые лишь касаются
- * границами (09:50 и 09:50), не пересекаются.
- * Строки HH:MM с ведущими нулями корректно сравниваются лексикографически.
- */
 export function timesOverlap(
   aStart: string,
   aEnd: string,
@@ -37,10 +30,6 @@ export function timesOverlap(
   return aStart < bEnd && bStart < aEnd;
 }
 
-/**
- * Собирает все занятые интервалы: занятия расписания и одобренные заявки.
- * Заявки в статусе PENDING, REJECTED и CANCELLED аудиторию не занимают.
- */
 export function buildOccupations(
   lessons: Lesson[],
   bookings: Booking[],
@@ -49,6 +38,7 @@ export function buildOccupations(
     id: `lesson-${lesson.id}`,
     kind: "LESSON",
     room: lesson.room,
+    roomId: lesson.roomId || `building-6-${lesson.room}`,
     date: lesson.date,
     start: lesson.start,
     end: lesson.end,
@@ -63,6 +53,7 @@ export function buildOccupations(
       id: `booking-${booking.id}`,
       kind: "BOOKING",
       room: booking.room,
+      roomId: booking.roomId || `building-6-${booking.room}`,
       date: booking.date,
       start: booking.start,
       end: booking.end,
@@ -74,29 +65,38 @@ export function buildOccupations(
   return [...fromLessons, ...fromBookings];
 }
 
-/** Возвращает занятые интервалы, пересекающиеся с запрошенным. */
 export function findConflicts(
   occupations: Occupation[],
   query: OccupationQuery,
   ignoreId?: string,
 ): Occupation[] {
+  const roomId = query.roomId || `building-6-${query.room}`;
+
   return occupations.filter(
     (item) =>
       item.id !== ignoreId &&
-      item.room === query.room &&
+      item.roomId === roomId &&
       item.date === query.date &&
-      timesOverlap(item.start, item.end, query.start, query.end),
+      timesOverlap(
+        item.start,
+        item.end,
+        query.start,
+        query.end,
+      ),
   );
 }
 
-/** Занятость одной аудитории на дату, по возрастанию времени начала. */
 export function getRoomDay(
   occupations: Occupation[],
   room: string,
   date: string,
 ): Occupation[] {
   return occupations
-    .filter((item) => item.room === room && item.date === date)
+    .filter(
+      (item) =>
+        (item.roomId === room || item.room === room) &&
+        item.date === date,
+    )
     .sort((a, b) => a.start.localeCompare(b.start));
 }
 

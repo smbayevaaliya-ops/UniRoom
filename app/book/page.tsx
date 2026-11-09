@@ -1,27 +1,18 @@
 import { Suspense } from "react";
-import type { Metadata } from "next";
 import BookingForm from "@/components/features/BookingForm";
-import { Card } from "@/components/ui/Card";
-import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
-
-export const metadata: Metadata = { title: "Бронирование аудитории" };
 
 export default function BookPage() {
   return (
-    <PageContainer>
-      <PageHeader
-        title="Бронирование аудитории"
-        description="Укажите аудиторию, дату и время. Система проверит, что аудитория не занята."
-      />
+    <main className="min-h-screen bg-gray-50 px-4 py-8">
       <Suspense
         fallback={
-          <Card className="p-6">
-            <p className="text-sm text-slate-500">Загрузка формы…</p>
-          </Card>
+          <div className="mx-auto max-w-3xl rounded-2xl bg-white p-8 text-center text-slate-500">
+            Загрузка формы бронирования...
+          </div>
         }
       >
         <BookingForm />
       </Suspense>
-    </PageContainer>
+    </main>
   );
 }

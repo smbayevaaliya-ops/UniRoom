@@ -1,17 +1,11 @@
-import type { Metadata } from "next";
 import ScheduleView from "@/components/features/ScheduleView";
-import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
-
-export const metadata: Metadata = { title: "Расписание" };
 
 export default function SchedulePage() {
   return (
-    <PageContainer>
-      <PageHeader
-        title="Расписание аудиторий"
-        description="Просматривайте занятия и одобренные брони, находите свободные аудитории."
-      />
-      <ScheduleView />
-    </PageContainer>
+    <main className="min-h-screen bg-gray-50 px-4 py-8">
+      <div className="mx-auto max-w-7xl">
+        <ScheduleView />
+      </div>
+    </main>
   );
 }

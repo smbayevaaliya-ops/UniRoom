@@ -1,17 +1,21 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { todayISO } from "@/lib/time";
+import { useEffect, useState } from "react";
 
-function subscribe(): () => void {
-  return () => {};
-}
+export function useToday() {
+  const [today, setToday] = useState("");
 
-/**
- * Сегодняшняя дата (YYYY-MM-DD) в часовом поясе пользователя.
- * На сервере и при гидратации возвращает пустую строку, чтобы разметка
- * не расходилась, затем подставляет реальную дату.
- */
-export function useToday(): string {
-  return useSyncExternalStore(subscribe, todayISO, () => "");
+  useEffect(() => {
+    const date = new Date();
+
+    const formattedDate = [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0"),
+    ].join("-");
+
+    setToday(formattedDate);
+  }, []);
+
+  return today;
 }
