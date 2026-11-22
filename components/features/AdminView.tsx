@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 import { BOOKING_STATUS_META } from "@/lib/constants";
 import {
@@ -9,6 +10,7 @@ import {
   useBuildings,
   useOccupations,
   updateBookingStatus,
+  updateBookingTeacher,
   toggleRoomActive,
   resetDemoData,
   addRoom,
@@ -18,7 +20,8 @@ import {
   updateBuilding,
   deleteBuilding,
 } from "@/lib/stores";
-import { useRole } from "@/lib/role-store";
+import { useRole, useTeacherId } from "@/lib/role-store";
+import { teachers } from "@/lib/data/teachers";
 import { useToday } from "@/lib/use-today";
 import type {
   BookingStatus,
@@ -27,6 +30,11 @@ import type {
 } from "@/lib/types";
 
 type Tab = "requests" | "rooms" | "buildings";
+
+type AdminViewProps = {
+  initialTab?: Tab;
+  standalone?: boolean;
+};
 
 type RoomForm = {
   number: string;
@@ -62,9 +70,19 @@ const emptyBuildingForm: BuildingForm = {
   address: "",
 };
 
-export default function AdminView() {
+export default function AdminView({
+  initialTab = "requests",
+  standalone = false,
+}: AdminViewProps) {
   const role = useRole();
+  const teacherId = useTeacherId();
+
   const isAdmin = role === "ADMIN";
+  const isTeacher = role === "TEACHER";
+
+  const selectedTeacher = teachers.find(
+    (teacher) => teacher.id === teacherId,
+  );
 
   const bookings = useBookings();
   const rooms = useRooms();
@@ -72,7 +90,7 @@ export default function AdminView() {
   const occupations = useOccupations();
   const today = useToday();
 
-  const [activeTab, setActiveTab] = useState<Tab>("requests");
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   const [filter, setFilter] = useState<"ALL" | BookingStatus>("ALL");
 
@@ -96,17 +114,82 @@ export default function AdminView() {
   const [showBuildingForm, setShowBuildingForm] = useState(false);
 
   const [selectedBuilding, setSelectedBuilding] = useState("all");
+  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
+  const [selectedDate, setSelectedDate] = useState("");
 
-  const sortedBookings = useMemo(
-    () => [...bookings].sort((a, b) => b.id - a.id),
-    [bookings],
-  );
+  const [sortBy, setSortBy] = useState<
+    "newest" | "oldest" | "date" | "room"
+  >("newest");
 
-  const filteredBookings = sortedBookings.filter(
-    (booking) => filter === "ALL" || booking.status === filter,
-  );
+  const visibleBookings = useMemo(() => {
+    if (isTeacher) {
+      if (!teacherId) return [];
 
-  const pendingCount = bookings.filter(
+      return bookings.filter(
+        (booking) => booking.teacherId === teacherId,
+      );
+    }
+
+    return bookings;
+  }, [bookings, isTeacher, teacherId]);
+
+  const filteredBookings = useMemo(() => {
+    let result = [...visibleBookings];
+
+    if (filter !== "ALL") {
+      result = result.filter(
+        (booking) => booking.status === filter,
+      );
+    }
+
+    if (selectedDate) {
+      result = result.filter(
+        (booking) => booking.date === selectedDate,
+      );
+    }
+
+    if (selectedRoomIds.length > 0) {
+      result = result.filter(
+        (booking) =>
+          booking.roomId !== undefined &&
+          selectedRoomIds.includes(booking.roomId),
+      );
+    }
+
+    if (sortBy === "newest") {
+      result.sort((a, b) => b.id - a.id);
+    }
+
+    if (sortBy === "oldest") {
+      result.sort((a, b) => a.id - b.id);
+    }
+
+    if (sortBy === "date") {
+      result.sort((a, b) =>
+        `${a.date} ${a.start}`.localeCompare(
+          `${b.date} ${b.start}`,
+        ),
+      );
+    }
+
+    if (sortBy === "room") {
+      result.sort((a, b) =>
+        a.room.localeCompare(b.room, "ru", {
+          numeric: true,
+        }),
+      );
+    }
+
+    return result;
+  }, [
+    visibleBookings,
+    filter,
+    selectedDate,
+    selectedRoomIds,
+    sortBy,
+  ]);
+
+  const pendingCount = visibleBookings.filter(
     (booking) =>
       booking.status === "PENDING" ||
       booking.status === "REVISION",
@@ -128,10 +211,55 @@ export default function AdminView() {
     (item) => item.date === today,
   );
 
+  useEffect(() => {
+    const now = new Date();
+
+    bookings.forEach((booking) => {
+      if (booking.status !== "REVISION") return;
+
+      const bookingEnd = new Date(
+        `${booking.date}T${booking.end}:00`,
+      );
+
+      if (
+        !Number.isNaN(bookingEnd.getTime()) &&
+        bookingEnd <= now
+      ) {
+        updateBookingStatus(
+          booking.id,
+          "CANCELLED",
+          "Время бронирования прошло. Заявка автоматически отменена.",
+        );
+      }
+    });
+  }, [bookings]);
+
   function getBuildingName(buildingId: string) {
     return (
       buildings.find((building) => building.id === buildingId)?.name ||
       "Корпус не найден"
+    );
+  }
+
+  function canManageBooking(id: number) {
+    const booking = bookings.find((item) => item.id === id);
+
+    if (!booking) return false;
+
+    if (isAdmin) {
+      return (
+        booking.status === "PENDING" ||
+        booking.status === "REVISION" ||
+        booking.status === "APPROVED"
+      );
+    }
+
+    if (!isTeacher || !teacherId) return false;
+
+    return (
+      booking.teacherId === teacherId &&
+    (booking.status === "PENDING" ||
+      booking.status === "REVISION")
     );
   }
 
@@ -140,6 +268,11 @@ export default function AdminView() {
     status: BookingStatus,
     message?: string,
   ) {
+    if (!canManageBooking(id)) {
+      alert("У вас нет прав для изменения этой заявки.");
+      return false;
+    }
+
     const result = updateBookingStatus(id, status, message);
 
     if (!result.ok) {
@@ -159,6 +292,8 @@ export default function AdminView() {
     id: number,
     action: "REJECTED" | "REVISION",
   ) {
+    if (!canManageBooking(id)) return;
+
     setEditingBooking(id);
     setComment("");
     setCommentAction(action);
@@ -201,6 +336,8 @@ export default function AdminView() {
   }
 
   function openNewRoomForm() {
+    if (!isAdmin) return;
+
     setEditingRoomId(null);
     setRoomForm({
       ...emptyRoomForm,
@@ -211,6 +348,8 @@ export default function AdminView() {
   }
 
   function openEditRoomForm(room: Classroom) {
+    if (!isAdmin) return;
+
     setEditingRoomId(room.id);
 
     setRoomForm({
@@ -230,6 +369,8 @@ export default function AdminView() {
 
   function saveRoom(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!isAdmin) return;
 
     const floor = Number(roomForm.floor);
     const capacity = Number(roomForm.capacity);
@@ -253,7 +394,9 @@ export default function AdminView() {
       capacity < 1 ||
       computerCount < 0
     ) {
-      setRoomError("Проверьте этаж, вместимость и количество компьютеров.");
+      setRoomError(
+        "Проверьте этаж, вместимость и количество компьютеров.",
+      );
       return;
     }
 
@@ -285,7 +428,9 @@ export default function AdminView() {
       const result = updateRoom(editingRoomId, roomData);
 
       if (!result.ok) {
-        setRoomError(result.message || "Не удалось изменить аудиторию.");
+        setRoomError(
+          result.message || "Не удалось изменить аудиторию.",
+        );
         return;
       }
     } else {
@@ -296,7 +441,9 @@ export default function AdminView() {
       });
 
       if (!result.ok) {
-        setRoomError(result.message || "Не удалось добавить аудиторию.");
+        setRoomError(
+          result.message || "Не удалось добавить аудиторию.",
+        );
         return;
       }
     }
@@ -308,6 +455,8 @@ export default function AdminView() {
   }
 
   function handleDeleteRoom(room: Classroom) {
+    if (!isAdmin) return;
+
     if (
       !confirm(
         `Удалить аудиторию №${room.number} из корпуса ${getBuildingName(room.buildingId)}?`,
@@ -324,6 +473,8 @@ export default function AdminView() {
   }
 
   function openNewBuildingForm() {
+    if (!isAdmin) return;
+
     setEditingBuildingId(null);
     setBuildingForm(emptyBuildingForm);
     setBuildingError("");
@@ -331,6 +482,8 @@ export default function AdminView() {
   }
 
   function openEditBuildingForm(building: Building) {
+    if (!isAdmin) return;
+
     setEditingBuildingId(building.id);
 
     setBuildingForm({
@@ -346,6 +499,8 @@ export default function AdminView() {
   function saveBuilding(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!isAdmin) return;
+
     const floors = Number(buildingForm.floors);
 
     if (!buildingForm.name.trim()) {
@@ -354,7 +509,9 @@ export default function AdminView() {
     }
 
     if (!Number.isInteger(floors) || floors < 1) {
-      setBuildingError("Количество этажей должно быть положительным числом.");
+      setBuildingError(
+        "Количество этажей должно быть положительным числом.",
+      );
       return;
     }
 
@@ -369,7 +526,9 @@ export default function AdminView() {
       : addBuilding(buildingData);
 
     if (!result.ok) {
-      setBuildingError(result.message || "Не удалось сохранить корпус.");
+      setBuildingError(
+        result.message || "Не удалось сохранить корпус.",
+      );
       return;
     }
 
@@ -380,11 +539,9 @@ export default function AdminView() {
   }
 
   function handleDeleteBuilding(building: Building) {
-    if (
-      !confirm(
-        `Удалить ${building.name}?`,
-      )
-    ) {
+    if (!isAdmin) return;
+
+    if (!confirm(`Удалить ${building.name}?`)) {
       return;
     }
 
@@ -409,12 +566,23 @@ export default function AdminView() {
 
   return (
     <div className="space-y-6">
+      {standalone && (
+        <Link
+          href="/admin"
+          className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+        >
+          ← Назад к панели администратора
+        </Link>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <p className="text-xs text-slate-500">Всего заявок</p>
+            <p className="text-xs text-slate-500">
+              {isTeacher ? "Мои заявки" : "Всего заявок"}
+            </p>
             <p className="mt-1 text-2xl font-bold">
-              {bookings.length}
+              {visibleBookings.length}
             </p>
           </div>
 
@@ -475,64 +643,210 @@ export default function AdminView() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveTab("requests")}
-          className={`rounded-xl px-4 py-2 text-sm font-medium ${
-            activeTab === "requests"
-              ? "bg-blue-600 text-white"
-              : "bg-slate-100 text-slate-600"
-          }`}
-        >
-          Заявки
-        </button>
+      {isTeacher && (
+        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+          <p className="text-sm font-medium text-blue-900">
+            {selectedTeacher
+              ? `Вы вошли как преподаватель: ${selectedTeacher.name}`
+              : "Преподаватель не выбран"}
+          </p>
+          <p className="mt-1 text-xs text-blue-700">
+            Здесь отображаются только заявки, назначенные выбранному преподавателю.
+          </p>
+        </div>
+      )}
 
-        {isAdmin && (
-          <>
-            <button
-              type="button"
-              onClick={() => setActiveTab("rooms")}
-              className={`rounded-xl px-4 py-2 text-sm font-medium ${
-                activeTab === "rooms"
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              Аудитории
-            </button>
+      {!standalone && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("requests")}
+            className={`rounded-xl px-4 py-2 text-sm font-medium ${
+              activeTab === "requests"
+                ? "bg-blue-600 text-white"
+                : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            Заявки
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab("buildings")}
-              className={`rounded-xl px-4 py-2 text-sm font-medium ${
-                activeTab === "buildings"
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              Корпуса
-            </button>
-          </>
-        )}
-      </div>
+          {isAdmin && (
+            <>
+              <button
+                type="button"
+                onClick={() => setActiveTab("rooms")}
+                className={`rounded-xl px-4 py-2 text-sm font-medium ${
+                  activeTab === "rooms"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                Аудитории
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("buildings")}
+                className={`rounded-xl px-4 py-2 text-sm font-medium ${
+                  activeTab === "buildings"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                Корпуса
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {activeTab === "requests" && (
         <div className="space-y-4">
-          <select
-            value={filter}
-            onChange={(event) =>
-              setFilter(event.target.value as "ALL" | BookingStatus)
-            }
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm"
-          >
-            <option value="ALL">Все заявки</option>
-            <option value="PENDING">На рассмотрении</option>
-            <option value="APPROVED">Одобренные</option>
-            <option value="REVISION">На доработке</option>
-            <option value="REJECTED">Отклонённые</option>
-            <option value="CANCELLED">Отменённые</option>
-          </select>
+          <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-sm">
+              Статус заявки
+
+              <select
+                value={filter}
+                onChange={(event) =>
+                  setFilter(
+                    event.target.value as "ALL" | BookingStatus,
+                  )
+                }
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+              >
+                <option value="ALL">Все статусы</option>
+                <option value="PENDING">На рассмотрении</option>
+                <option value="APPROVED">Одобренные</option>
+                <option value="REVISION">На доработке</option>
+                <option value="REJECTED">Отклонённые</option>
+                <option value="CANCELLED">Отменённые</option>
+              </select>
+            </label>
+
+            <label className="text-sm">
+              Дата
+
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(event) =>
+                  setSelectedDate(event.target.value)
+                }
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2"
+              />
+            </label>
+
+            <label className="text-sm">
+              Корпус и аудитории
+
+              <select
+                value={selectedBuilding}
+                onChange={(event) => {
+                  setSelectedBuilding(event.target.value);
+                  setSelectedRoomIds([]);
+                }}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+              >
+                <option value="all">Все корпуса</option>
+
+                {buildings.map((building) => (
+                  <option key={building.id} value={building.id}>
+                    {building.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm">
+              Сортировка
+
+              <select
+                value={sortBy}
+                onChange={(event) =>
+                  setSortBy(
+                    event.target.value as
+                      | "newest"
+                      | "oldest"
+                      | "date"
+                      | "room",
+                  )
+                }
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+              >
+                <option value="newest">Сначала новые</option>
+                <option value="oldest">Сначала старые</option>
+                <option value="date">По дате и времени</option>
+                <option value="room">По номеру аудитории</option>
+              </select>
+            </label>
+
+            <div className="sm:col-span-2 lg:col-span-4">
+              <p className="mb-2 text-sm font-medium">
+                Выберите аудитории
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {rooms
+                  .filter(
+                    (room) =>
+                      selectedBuilding === "all" ||
+                      room.buildingId === selectedBuilding,
+                  )
+                  .sort((a, b) =>
+                    a.number.localeCompare(b.number, "ru", {
+                      numeric: true,
+                    }),
+                  )
+                  .map((room) => {
+                    const selected = selectedRoomIds.includes(room.id);
+
+                    return (
+                      <button
+                        key={room.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedRoomIds((current) =>
+                            selected
+                              ? current.filter(
+                                  (id) => id !== room.id,
+                                )
+                              : [...current, room.id],
+                          )
+                        }
+                        className={`rounded-lg border px-3 py-2 text-xs font-medium ${
+                          selected
+                            ? "border-blue-600 bg-blue-600 text-white"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {room.number}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between sm:col-span-2 lg:col-span-4">
+              <p className="text-xs text-slate-500">
+                Найдено заявок: {filteredBookings.length}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFilter("ALL");
+                  setSelectedDate("");
+                  setSelectedBuilding("all");
+                  setSelectedRoomIds([]);
+                  setSortBy("newest");
+                }}
+                className="text-sm font-medium text-blue-600 hover:underline"
+              >
+                Сбросить фильтры
+              </button>
+            </div>
+          </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
             <table className="w-full text-left text-sm">
@@ -544,6 +858,8 @@ export default function AdminView() {
                   <th className="p-4">Цель</th>
                   <th className="p-4">Статус</th>
                   <th className="p-4">Действия</th>
+
+                  <th className="p-4">Преподаватель</th>
                 </tr>
               </thead>
 
@@ -553,6 +869,8 @@ export default function AdminView() {
                     (currentRoom) =>
                       currentRoom.id === item.roomId,
                   );
+
+                  const canManage = canManageBooking(item.id);
 
                   return (
                     <tr
@@ -596,8 +914,7 @@ export default function AdminView() {
                       </td>
 
                       <td className="p-4">
-                        {item.status === "PENDING" ||
-                        item.status === "REVISION" ? (
+                        {canManage && item.status !== "APPROVED" ? (
                           <div className="flex flex-col gap-2">
                             <button
                               type="button"
@@ -629,20 +946,51 @@ export default function AdminView() {
                               Отклонить
                             </button>
                           </div>
-                        ) : item.status === "APPROVED" ? (
+                        ) : canManage && isAdmin && item.status === "APPROVED" ? (
                           <button
                             type="button"
-                            onClick={() =>
-                              changeStatus(item.id, "CANCELLED")
-                            }
-                            className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                            onClick={() => {
+                              if (confirm("Отменить это бронирование?")) {
+                                changeStatus(item.id, "CANCELLED");
+                              }
+                            }}
+                            className="rounded-lg bg-red-600 px-3 py-2 text-xs text-white"
                           >
-                            Отменить
+                            Отменить бронирование
                           </button>
                         ) : (
                           <span className="text-xs text-slate-400">
-                            Обработана
+                            {isAdmin
+                              ? "Просмотр"
+                              : item.status === "APPROVED"
+                                ? "Одобрена"
+                                : item.status === "REJECTED"
+                                  ? "Отклонена"
+                                  : item.status === "CANCELLED"
+                                    ? "Отменена"
+                                    : "Обработана"}
                           </span>
+                        )}
+                      </td>
+
+                      <td className="p-4">
+                        {isAdmin ? (
+                          <select
+                            value={item.teacherId ?? ""}
+                            onChange={(event) =>
+                              updateBookingTeacher(item.id, event.target.value)
+                            }
+                            className="w-full min-w-36 rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs"
+                          >
+                            <option value="">Не назначен</option>
+                            {teachers.map((teacher) => (
+                              <option key={teacher.id} value={teacher.id}>
+                                {teacher.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          teachers.find((teacher) => teacher.id === item.teacherId)?.name ?? "Не назначен"
                         )}
                       </td>
                     </tr>
@@ -652,10 +1000,12 @@ export default function AdminView() {
                 {filteredBookings.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       className="p-8 text-center text-slate-400"
                     >
-                      Заявок нет
+                      {isTeacher && !teacherId
+                        ? "Сначала выберите преподавателя в боковом меню."
+                        : "Заявок нет"}
                     </td>
                   </tr>
                 )}
@@ -1198,7 +1548,7 @@ export default function AdminView() {
         </div>
       )}
 
-      {editingBooking !== null && (
+      {editingBooking !== null && (isTeacher || isAdmin) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold">

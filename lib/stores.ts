@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   buildOccupations,
   findConflicts,
@@ -39,8 +39,52 @@ export type AddBookingResult =
   | { ok: true; booking: Booking }
   | { ok: false; conflicts: Occupation[]; message?: string };
 
-export function addBooking(input: NewBooking): AddBookingResult {
+function isBookingExpired(booking: Booking): boolean {
+  const bookingEnd = new Date(
+    `${booking.date}T${booking.end}:00`,
+  );
+
+  return (
+    !Number.isNaN(bookingEnd.getTime()) &&
+    bookingEnd.getTime() <= Date.now()
+  );
+}
+
+function expireRevisionBookings(): Booking[] {
   const current = bookingsStore.get();
+
+  let changed = false;
+
+  const updated = current.map((booking) => {
+    if (
+      booking.status === "REVISION" &&
+      isBookingExpired(booking)
+    ) {
+      changed = true;
+
+      return {
+        ...booking,
+        status: "CANCELLED" as const,
+        comment:
+          "Срок доработки истёк: время бронирования уже прошло.",
+      };
+    }
+
+    return booking;
+  });
+
+  if (changed) {
+    bookingsStore.set(updated);
+    return updated;
+  }
+
+  return current;
+}
+
+export function addBooking(
+  input: NewBooking,
+): AddBookingResult {
+  const current = expireRevisionBookings();
   const rooms = roomsStore.get();
 
   const selectedRoom = rooms.find(
@@ -52,6 +96,21 @@ export function addBooking(input: NewBooking): AddBookingResult {
       ok: false,
       conflicts: [],
       message: "Эта аудитория недоступна для бронирования.",
+    };
+  }
+
+  const requestedEnd = new Date(
+    `${input.date}T${input.end}:00`,
+  );
+
+  if (
+    Number.isNaN(requestedEnd.getTime()) ||
+    requestedEnd.getTime() <= Date.now()
+  ) {
+    return {
+      ok: false,
+      conflicts: [],
+      message: "Нельзя создать заявку на прошедшее время.",
     };
   }
 
@@ -67,7 +126,10 @@ export function addBooking(input: NewBooking): AddBookingResult {
   );
 
   if (conflicts.length > 0) {
-    return { ok: false, conflicts };
+    return {
+      ok: false,
+      conflicts,
+    };
   }
 
   const booking: Booking = {
@@ -83,26 +145,70 @@ export function addBooking(input: NewBooking): AddBookingResult {
 
   bookingsStore.set([...current, booking]);
 
-  return { ok: true, booking };
+  return {
+    ok: true,
+    booking,
+  };
 }
 
 export type UpdateStatusResult =
   | { ok: true }
-  | { ok: false; conflicts: Occupation[] };
+  | { ok: false; conflicts: Occupation[]; message?: string };
 
 export function updateBookingStatus(
   id: number,
   status: BookingStatus,
   comment?: string,
 ): UpdateStatusResult {
-  const current = bookingsStore.get();
-  const target = current.find((item) => item.id === id);
+  const current = expireRevisionBookings();
+
+  const target = current.find(
+    (item) => item.id === id,
+  );
 
   if (!target) {
-    return { ok: false, conflicts: [] };
+    return {
+      ok: false,
+      conflicts: [],
+      message: "Заявка не найдена.",
+    };
+  }
+
+  if (
+    target.status !== "PENDING" &&
+    target.status !== "REVISION" &&
+    !(target.status === "APPROVED" && status === "CANCELLED")
+  ) {
+    return {
+      ok: false,
+      conflicts: [],
+      message: "Эта заявка уже обработана.",
+    };
   }
 
   if (status === "APPROVED") {
+    if (isBookingExpired(target)) {
+      bookingsStore.set(
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status: "CANCELLED",
+                comment:
+                  "Заявка отменена: время бронирования уже прошло.",
+              }
+            : item,
+        ),
+      );
+
+      return {
+        ok: false,
+        conflicts: [],
+        message:
+          "Нельзя одобрить заявку на прошедшее время.",
+      };
+    }
+
     const conflicts = findConflicts(
       buildOccupations(lessons, current),
       {
@@ -116,7 +222,12 @@ export function updateBookingStatus(
     );
 
     if (conflicts.length > 0) {
-      return { ok: false, conflicts };
+      return {
+        ok: false,
+        conflicts,
+        message:
+          "Время пересекается с другим занятием или бронированием.",
+      };
     }
   }
 
@@ -135,11 +246,33 @@ export function updateBookingStatus(
   return { ok: true };
 }
 
+export function updateBookingTeacher(
+  id: number,
+  teacherId: string,
+): boolean {
+  const current = expireRevisionBookings();
+  const target = current.find((item) => item.id === id);
+
+  if (!target) return false;
+
+  bookingsStore.set(
+    current.map((item) =>
+      item.id === id
+        ? { ...item, teacherId }
+        : item,
+    ),
+  );
+
+  return true;
+}
 export function toggleRoomActive(roomId: string): void {
   roomsStore.set(
     roomsStore.get().map((room) =>
       room.id === roomId
-        ? { ...room, active: !room.active }
+        ? {
+            ...room,
+            active: !room.active,
+          }
         : room,
     ),
   );
@@ -156,33 +289,42 @@ export function addRoom(
   );
 
   if (!building) {
-    return { ok: false, message: "Корпус не найден." };
+    return {
+      ok: false,
+      message: "Корпус не найден.",
+    };
   }
 
-  if (input.floor < 1 || input.floor > building.floors) {
+  if (
+    input.floor < 1 ||
+    input.floor > building.floors
+  ) {
     return {
       ok: false,
       message: "Указан неверный этаж.",
     };
   }
 
+  const roomNumber = input.number.trim();
+
   const duplicate = current.some(
     (room) =>
       room.buildingId === input.buildingId &&
-      room.number.trim() === input.number.trim(),
+      room.number.trim() === roomNumber,
   );
 
   if (duplicate) {
     return {
       ok: false,
-      message: "Аудитория с таким номером уже существует в этом корпусе.",
+      message:
+        "Аудитория с таким номером уже существует в этом корпусе.",
     };
   }
 
   const room: Classroom = {
     ...input,
-    id: `${input.buildingId}-${input.number.trim()}`,
-    number: input.number.trim(),
+    id: `${input.buildingId}-${roomNumber}`,
+    number: roomNumber,
   };
 
   roomsStore.set([...current, room]);
@@ -195,35 +337,54 @@ export function updateRoom(
   changes: Partial<Omit<Classroom, "id">>,
 ): { ok: boolean; message?: string } {
   const current = roomsStore.get();
-  const target = current.find((room) => room.id === roomId);
+
+  const target = current.find(
+    (room) => room.id === roomId,
+  );
 
   if (!target) {
-    return { ok: false, message: "Аудитория не найдена." };
+    return {
+      ok: false,
+      message: "Аудитория не найдена.",
+    };
   }
 
-  const nextBuildingId = changes.buildingId ?? target.buildingId;
-  const nextNumber = changes.number?.trim() ?? target.number;
-  const nextFloor = changes.floor ?? target.floor;
+  const nextBuildingId =
+    changes.buildingId ?? target.buildingId;
+
+  const nextNumber =
+    changes.number?.trim() ?? target.number;
+
+  const nextFloor =
+    changes.floor ?? target.floor;
 
   const building = buildingsStore
     .get()
     .find((item) => item.id === nextBuildingId);
 
-  if (!building || nextFloor < 1 || nextFloor > building.floors) {
-    return { ok: false, message: "Проверьте корпус и этаж." };
+  if (
+    !building ||
+    nextFloor < 1 ||
+    nextFloor > building.floors
+  ) {
+    return {
+      ok: false,
+      message: "Проверьте корпус и этаж.",
+    };
   }
 
   const duplicate = current.some(
     (room) =>
       room.id !== roomId &&
       room.buildingId === nextBuildingId &&
-      room.number === nextNumber,
+      room.number.trim() === nextNumber,
   );
 
   if (duplicate) {
     return {
       ok: false,
-      message: "Такая аудитория уже есть в выбранном корпусе.",
+      message:
+        "Такая аудитория уже есть в выбранном корпусе.",
     };
   }
 
@@ -258,12 +419,15 @@ export function deleteRoom(
   if (hasBookings || hasLessons) {
     return {
       ok: false,
-      message: "Нельзя удалить аудиторию, у которой есть занятия или заявки.",
+      message:
+        "Нельзя удалить аудиторию, у которой есть занятия или заявки.",
     };
   }
 
   roomsStore.set(
-    roomsStore.get().filter((room) => room.id !== roomId),
+    roomsStore
+      .get()
+      .filter((room) => room.id !== roomId),
   );
 
   return { ok: true };
@@ -274,16 +438,19 @@ export function addBuilding(
 ): { ok: boolean; message?: string } {
   const current = buildingsStore.get();
 
+  const buildingName = input.name.trim();
+
   const duplicate = current.some(
     (building) =>
       building.name.trim().toLowerCase() ===
-      input.name.trim().toLowerCase(),
+      buildingName.toLowerCase(),
   );
 
   if (duplicate) {
     return {
       ok: false,
-      message: "Корпус с таким названием уже существует.",
+      message:
+        "Корпус с таким названием уже существует.",
     };
   }
 
@@ -293,6 +460,7 @@ export function addBuilding(
     ...current,
     {
       ...input,
+      name: buildingName,
       id,
     },
   ]);
@@ -316,14 +484,18 @@ export function updateBuilding(
   ) {
     return {
       ok: false,
-      message: "Нельзя уменьшить количество этажей: на них есть аудитории.",
+      message:
+        "Нельзя уменьшить количество этажей: на них есть аудитории.",
     };
   }
 
   buildingsStore.set(
     current.map((building) =>
       building.id === id
-        ? { ...building, ...changes }
+        ? {
+            ...building,
+            ...changes,
+          }
         : building,
     ),
   );
@@ -341,12 +513,15 @@ export function deleteBuilding(
   if (hasRooms) {
     return {
       ok: false,
-      message: "Сначала удалите аудитории этого корпуса.",
+      message:
+        "Сначала удалите аудитории этого корпуса.",
     };
   }
 
   buildingsStore.set(
-    buildingsStore.get().filter((building) => building.id !== id),
+    buildingsStore
+      .get()
+      .filter((building) => building.id !== id),
   );
 
   return { ok: true };
@@ -359,7 +534,31 @@ export function resetDemoData(): void {
 }
 
 export function useBookings(): Booking[] {
-  return bookingsStore.useStore();
+  const bookings = bookingsStore.useStore();
+
+  useEffect(() => {
+    expireRevisionBookings();
+  }, [bookings]);
+
+  return useMemo<Booking[]>(
+    () =>
+      bookings.map((booking) => {
+        if (
+          booking.status === "REVISION" &&
+          isBookingExpired(booking)
+        ) {
+          return {
+            ...booking,
+            status: "CANCELLED",
+            comment:
+              "Срок доработки истёк: время бронирования уже прошло.",
+          };
+        }
+
+        return booking;
+      }),
+    [bookings],
+  );
 }
 
 export function useRooms(): Classroom[] {

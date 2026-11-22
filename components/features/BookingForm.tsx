@@ -10,6 +10,7 @@ import {
   getRoomDay,
 } from "@/lib/availability";
 import { timeSlots } from "@/lib/data/time-slots";
+import { teachers } from "@/lib/data/teachers";
 import {
   addBooking,
   useBuildings,
@@ -34,6 +35,8 @@ import {
   TextField,
 } from "@/components/ui/Field";
 
+const STUDENT_NAME_KEY = "uniroom.student-name.v1";
+
 export default function BookingForm() {
   const params = useSearchParams();
   const today = useToday();
@@ -48,6 +51,7 @@ export default function BookingForm() {
 
   const [values, setValues] = useState<BookingFormValues>({
     requester: "",
+    teacherId: "",
     room: initialRoom,
     date: params.get("date") ?? "",
     start: params.get("start") ?? "10:00",
@@ -58,6 +62,7 @@ export default function BookingForm() {
   const [errors, setErrors] = useState<BookingFormErrors>({});
   const [serverConflicts, setServerConflicts] = useState<string[]>([]);
   const [createdId, setCreatedId] = useState<number | null>(null);
+  const [submitError, setSubmitError] = useState("");
 
   const date = values.date || today;
 
@@ -123,73 +128,105 @@ export default function BookingForm() {
 
     setServerConflicts([]);
     setCreatedId(null);
+    setSubmitError("");
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const candidate = {
-      ...values,
-      date,
-      room: selectedRoom?.id ?? values.room,
-    };
-
-    const validationErrors = validateBookingForm(
-      candidate,
-      bookableRooms.map((room) => room.id),
-    );
-
-    if (!selectedRoom) {
-      validationErrors.room = "Выберите доступную аудиторию.";
-    }
-
-    setErrors(validationErrors);
     setCreatedId(null);
     setServerConflicts([]);
+    setSubmitError("");
 
-    if (Object.keys(validationErrors).length > 0) {
-      return;
-    }
+    try {
+      const candidate = {
+        ...values,
+        date,
+        room: selectedRoom?.id ?? values.room,
+      };
 
-    if (liveConflicts.length > 0) {
-      setServerConflicts(
-        liveConflicts.map(describeOccupation),
+      const validationErrors = validateBookingForm(
+        candidate,
+        bookableRooms.map((room) => room.id),
       );
-      return;
-    }
 
-        if (!selectedRoom) {
-      setErrors({
-        ...validationErrors,
-        room: "Выберите существующую аудиторию.",
+      if (!selectedRoom) {
+        validationErrors.room = "Выберите доступную аудиторию.";
+      }
+
+      setErrors(validationErrors);
+
+      if (Object.keys(validationErrors).length > 0) {
+        setSubmitError(
+          "Проверьте заполнение формы. Исправьте отмеченные поля.",
+        );
+        return;
+      }
+
+      if (liveConflicts.length > 0) {
+        setServerConflicts(
+          liveConflicts.map(describeOccupation),
+        );
+        setSubmitError(
+          "Заявка не отправлена: выбранная аудитория занята.",
+        );
+        return;
+      }
+
+      if (!selectedRoom) {
+        setSubmitError("Не удалось определить аудиторию.");
+        return;
+      }
+
+      const requester = candidate.requester.trim();
+
+      const result = addBooking({
+        requester,
+        teacherId: candidate.teacherId,
+        room: selectedRoom.number,
+        roomId: selectedRoom.id,
+        buildingId: selectedRoom.buildingId,
+        floor: selectedRoom.floor,
+        date: candidate.date,
+        start: candidate.start,
+        end: candidate.end,
+        purpose: candidate.purpose.trim(),
       });
-      return;
-    }
 
-    const result = addBooking({
-      requester: candidate.requester.trim(),
-      room: selectedRoom.number,
-      roomId: selectedRoom.id,
-      buildingId: selectedRoom.buildingId,
-      floor: selectedRoom.floor,
-      date: candidate.date,
-      start: candidate.start,
-      end: candidate.end,
-      purpose: candidate.purpose.trim(),
-    });
+      if (!result.ok) {
+        setServerConflicts(
+          result.conflicts.map(describeOccupation),
+        );
 
-    if (!result.ok) {
-      setServerConflicts(
-        result.conflicts.map(describeOccupation),
+        setSubmitError(
+          result.message ||
+            (result.conflicts.length > 0
+              ? "Выбранное время занято. Выберите другую пару."
+              : "Не удалось создать заявку."),
+        );
+        return;
+      }
+
+      try {
+        localStorage.setItem(STUDENT_NAME_KEY, requester);
+      } catch {
+        // Заявка уже создана. Ошибка записи имени не отменяет бронирование.
+      }
+
+      setCreatedId(result.booking.id);
+      setSubmitError("");
+
+      setValues((current) => ({
+        ...current,
+        purpose: "",
+      }));
+    } catch (error) {
+      console.error("Ошибка отправки заявки:", error);
+
+      setSubmitError(
+        "Произошла ошибка при отправке заявки. Попробуйте ещё раз.",
       );
-      return;
     }
-    setCreatedId(result.booking.id);
-
-    setValues((current) => ({
-      ...current,
-      purpose: "",
-    }));
   }
 
   if (!today) {
@@ -216,7 +253,7 @@ export default function BookingForm() {
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              Выберите аудиторию, дату и свободную пару.
+              Выберите преподавателя, аудиторию, дату и свободную пару.
             </p>
           </div>
 
@@ -225,7 +262,17 @@ export default function BookingForm() {
               tone="success"
               title={`Заявка №${createdId} отправлена`}
             >
-              Заявка создана и ожидает рассмотрения преподавателем.
+              Заявка создана и направлена выбранному преподавателю
+              на рассмотрение.
+            </Alert>
+          )}
+
+          {submitError && (
+            <Alert
+              tone="danger"
+              title="Не удалось отправить заявку"
+            >
+              {submitError}
             </Alert>
           )}
 
@@ -253,6 +300,23 @@ export default function BookingForm() {
               update("requester", event.target.value)
             }
           />
+
+          <SelectField
+            label="Преподаватель"
+            value={values.teacherId}
+            error={errors.teacherId}
+            onChange={(event) =>
+              update("teacherId", event.target.value)
+            }
+          >
+            <option value="">Выберите преподавателя</option>
+
+            {teachers.map((teacher) => (
+              <option key={teacher.id} value={teacher.id}>
+                {teacher.name}
+              </option>
+            ))}
+          </SelectField>
 
           <SelectField
             label="Аудитория"
@@ -341,6 +405,7 @@ export default function BookingForm() {
                     : [];
 
                 const occupied = conflicts.length > 0;
+
                 const selected =
                   values.start === slot.start &&
                   values.end === slot.end;
@@ -413,7 +478,7 @@ export default function BookingForm() {
           <div className="flex flex-wrap gap-3">
             <Button
               type="submit"
-              disabled={!selectedRoom || liveConflicts.length > 0}
+              disabled={!selectedRoom}
             >
               Отправить заявку
             </Button>

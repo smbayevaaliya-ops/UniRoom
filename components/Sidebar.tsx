@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { useRole, setRole } from "@/lib/role-store";
+import {
+  useRole,
+  setRole,
+  useTeacherId,
+  setTeacherId,
+} from "@/lib/role-store";
+import { teachers } from "@/lib/data/teachers";
 import type { UserRole } from "@/lib/types";
 
 const navigation = [
@@ -20,11 +26,30 @@ const roleNames: Record<UserRole, string> = {
   ADMIN: "Администратор",
 };
 
+function isUserRole(value: string): value is UserRole {
+  return (
+    value === "STUDENT" ||
+    value === "TEACHER" ||
+    value === "ADMIN"
+  );
+}
+
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
+
   const pathname = usePathname();
   const router = useRouter();
-  const role = useRole();
+
+  const storedRole = useRole();
+  const role: UserRole = isUserRole(storedRole)
+    ? storedRole
+    : "STUDENT";
+
+  const teacherId = useTeacherId();
+
+  const selectedTeacher = teachers.find(
+    (teacher) => teacher.id === teacherId,
+  );
 
   const changeRole = (newRole: UserRole) => {
     setRole(newRole);
@@ -73,7 +98,9 @@ export default function Sidebar() {
 
           <div>
             <p className="text-xl font-bold">UniRoom</p>
-            <p className="text-xs text-slate-400">University workspace</p>
+            <p className="text-xs text-slate-400">
+              University workspace
+            </p>
           </div>
         </div>
 
@@ -110,13 +137,46 @@ export default function Sidebar() {
 
             <select
               value={role}
-              onChange={(e) => changeRole(e.target.value as UserRole)}
+              onChange={(event) => {
+                const value = event.target.value;
+
+                if (isUserRole(value)) {
+                  changeRole(value);
+                }
+              }}
               className="w-full rounded-lg border border-white/10 bg-[#1f2937] p-2 text-sm text-white outline-none"
             >
               <option value="STUDENT">Студент</option>
               <option value="TEACHER">Преподаватель</option>
               <option value="ADMIN">Администратор</option>
             </select>
+
+            {role === "TEACHER" && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs text-slate-400">
+                  Выберите преподавателя
+                </p>
+
+                <select
+                  value={teacherId}
+                  onChange={(event) =>
+                    setTeacherId(event.target.value)
+                  }
+                  className="w-full rounded-lg border border-white/10 bg-[#1f2937] p-2 text-sm text-white outline-none"
+                >
+                  <option value="">Не выбран</option>
+
+                  {teachers.map((teacher) => (
+                    <option
+                      key={teacher.id}
+                      value={teacher.id}
+                    >
+                      {teacher.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <Link
@@ -125,13 +185,24 @@ export default function Sidebar() {
             className="mt-3 flex items-center gap-3 rounded-xl bg-white/5 p-3"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-lg font-semibold">
-              П
+              {role === "TEACHER"
+                ? selectedTeacher?.name.charAt(0) || "П"
+                : role === "ADMIN"
+                  ? "А"
+                  : "П"}
             </div>
 
             <div>
-              <p className="text-sm font-semibold">Пользователь</p>
+              <p className="text-sm font-semibold">
+                {role === "TEACHER"
+                  ? selectedTeacher?.name || "Преподаватель"
+                  : role === "ADMIN"
+                    ? "Администратор"
+                    : "Пользователь"}
+              </p>
+
               <p className="text-xs text-slate-400">
-                {roleNames[role as UserRole]}
+                {roleNames[role]}
               </p>
             </div>
           </Link>

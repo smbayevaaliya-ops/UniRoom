@@ -49,6 +49,7 @@ export type BookingStatus =
 export type Booking = {
   id: number;
   requester: string;
+  teacherId?: string;
   room: string;
   roomId?: string;
   buildingId?: string;

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 
@@ -19,13 +19,29 @@ export default function ScheduleView() {
 
   const date = selectedDate || today;
 
-  const filteredRooms = useMemo(() => {
-    return rooms.filter(
-      (room) =>
-        buildingFilter === "all" ||
-        room.buildingId === buildingFilter,
-    );
-  }, [rooms, buildingFilter]);
+  function changeDate(days: number) {
+    if (!date) return;
+
+    const next = new Date(`${date}T12:00:00`);
+    next.setDate(next.getDate() + days);
+
+    const year = next.getFullYear();
+    const month = String(next.getMonth() + 1).padStart(2, "0");
+    const day = String(next.getDate()).padStart(2, "0");
+
+    setSelectedDate(`${year}-${month}-${day}`);
+  }
+
+  const filteredRooms = useMemo(
+    () =>
+      rooms.filter(
+        (room) =>
+          room.active !== false &&
+          (buildingFilter === "all" ||
+            room.buildingId === buildingFilter),
+      ),
+    [rooms, buildingFilter],
+  );
 
   const filteredOccupations = useMemo(() => {
     if (!date) return [];
@@ -74,24 +90,65 @@ export default function ScheduleView() {
     return `${building?.name || "Корпус"} · ${room.floor} этаж · №${room.number}`;
   }
 
+  const hours = Array.from({ length: 12 }, (_, index) => index + 8);
+
+  const dateLabel = date
+    ? new Date(`${date}T12:00:00`).toLocaleDateString("ru-RU", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Расписание</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Расписание аудиторий
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Просмотр занятости аудиторий по выбранной дате.
+          </p>
+        </div>
 
-        <p className="mt-1 text-sm text-gray-500">
-          Занятость аудиторий по выбранной дате.
-        </p>
+        <button
+          type="button"
+          onClick={() => setSelectedDate("")}
+          className="rounded-xl border bg-white px-4 py-2 text-sm font-medium hover:bg-gray-50"
+        >
+          Сегодня
+        </button>
       </div>
 
-      <div className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-3">
-        <input
-          type="date"
-          value={date}
-          min={today || undefined}
-          onChange={(event) => setSelectedDate(event.target.value)}
-          className="rounded-xl border px-3 py-3"
-        />
+      <div className="grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => changeDate(-1)}
+            className="rounded-xl border px-3 py-3 hover:bg-gray-50"
+            aria-label="Предыдущий день"
+          >
+            ←
+          </button>
+
+          <input
+            type="date"
+            value={date}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            className="min-w-0 flex-1 rounded-xl border px-3 py-3"
+          />
+
+          <button
+            type="button"
+            onClick={() => changeDate(1)}
+            className="rounded-xl border px-3 py-3 hover:bg-gray-50"
+            aria-label="Следующий день"
+          >
+            →
+          </button>
+        </div>
 
         <select
           value={buildingFilter}
@@ -102,7 +159,6 @@ export default function ScheduleView() {
           className="rounded-xl border px-3 py-3"
         >
           <option value="all">Все корпуса</option>
-
           {buildings.map((building) => (
             <option key={building.id} value={building.id}>
               {building.name}
@@ -116,7 +172,6 @@ export default function ScheduleView() {
           className="rounded-xl border px-3 py-3"
         >
           <option value="all">Все аудитории</option>
-
           {filteredRooms.map((room) => {
             const building = buildings.find(
               (item) => item.id === room.buildingId,
@@ -124,70 +179,122 @@ export default function ScheduleView() {
 
             return (
               <option key={room.id} value={room.id}>
-                {building?.name || "Корпус"} · №{room.number} · {room.floor} этаж
+                {building?.name || "Корпус"} · №{room.number}
               </option>
             );
           })}
         </select>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border bg-white">
-        <div className="grid grid-cols-[110px_1fr] border-b bg-gray-50 p-4 text-sm font-semibold">
-          <span>Время</span>
-          <span>Занятость</span>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold capitalize text-gray-900">
+          {dateLabel}
+        </h2>
 
+        <div className="flex flex-wrap gap-3 text-xs">
+          <span className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded bg-blue-500" />
+            Занятие
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded bg-green-500" />
+            Бронирование
+          </span>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border bg-white">
         {filteredOccupations.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-500">
-            На выбранную дату занятий и подтверждённых бронирований нет.
+          <div className="p-10 text-center">
+            <div className="text-3xl">📅</div>
+            <h3 className="mt-3 font-semibold text-gray-900">
+              На эту дату занятости нет
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              По выбранным фильтрам занятий и подтверждённых бронирований не найдено.
+            </p>
           </div>
         ) : (
-          filteredOccupations.map((item) => (
-            <div
-              key={item.id}
-              className="grid grid-cols-[110px_1fr] gap-3 border-b p-4 last:border-0"
-            >
-              <div className="text-sm font-semibold">
-                {item.start}
+          <div>
+            {hours.map((hour) => {
+              const hourStart = `${String(hour).padStart(2, "0")}:00`;
+              const hourEnd = `${String(hour + 1).padStart(2, "0")}:00`;
 
-                <span className="block font-normal text-gray-500">
-                  {item.end}
-                </span>
-              </div>
+              const items = filteredOccupations.filter(
+                (item) =>
+                  item.start >= hourStart && item.start < hourEnd,
+              );
 
-              <div>
-                <div className="font-medium">
-                  {roomDetails(item.roomId)}
-                </div>
-
-                {role === "STUDENT" ? (
-                  <p className="mt-1 text-sm text-gray-500">
-                    Аудитория занята
-                  </p>
-                ) : (
-                  <>
-                    <p className="mt-1 text-sm">{item.title}</p>
-
-                    <p className="text-sm text-gray-500">
-                      {item.group} · {item.owner}
-                    </p>
-                  </>
-                )}
-
-                <span
-                  className={`mt-2 inline-block rounded-full px-2 py-1 text-xs ${
-                    item.kind === "LESSON"
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-green-100 text-green-700"
-                  }`}
+              return (
+                <div
+                  key={hour}
+                  className="grid min-h-24 grid-cols-[65px_1fr] border-b last:border-0 sm:grid-cols-[90px_1fr]"
                 >
-                  {item.kind === "LESSON"
-                    ? "Занятие"
-                    : "Бронирование"}
-                </span>
-              </div>
-            </div>
-          ))
+                  <div className="border-r bg-gray-50 p-3 text-sm font-semibold text-gray-500">
+                    {hourStart}
+                  </div>
+
+                  <div className="space-y-2 p-3">
+                    {items.length === 0 ? (
+                      <p className="py-2 text-xs text-gray-300">
+                        Свободно
+                      </p>
+                    ) : (
+                      items.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`rounded-xl border-l-4 p-3 ${
+                            item.kind === "LESSON"
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-green-500 bg-green-50"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-sm font-semibold text-gray-900">
+                              {item.start}–{item.end}
+                            </span>
+
+                            <span
+                              className={`rounded-full px-2 py-1 text-xs font-medium ${
+                                item.kind === "LESSON"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-green-100 text-green-700"
+                              }`}
+                            >
+                              {item.kind === "LESSON"
+                                ? "Занятие"
+                                : "Бронирование"}
+                            </span>
+                          </div>
+
+                          <p className="mt-1 text-sm font-medium text-gray-800">
+                            {roomDetails(item.roomId)}
+                          </p>
+
+                          {role !== "STUDENT" && (
+                            <>
+                              <p className="mt-1 text-sm text-gray-700">
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {item.group} · {item.owner}
+                              </p>
+                            </>
+                          )}
+
+                          {role === "STUDENT" && (
+                            <p className="mt-1 text-xs text-gray-500">
+                              Аудитория занята
+                            </p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

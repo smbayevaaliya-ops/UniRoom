@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useRole } from "@/lib/role-store";
 import { PageContainer, PageHeader } from "@/components/ui/PageHeader";
 import AdminView from "@/components/features/AdminView";
+import AdminDashboard from "@/components/features/AdminDashboard";
 
 export default function AdminAccess() {
   const role = useRole();
@@ -25,13 +26,25 @@ export default function AdminAccess() {
     return null;
   }
 
+  const isAdmin = role === "ADMIN";
+  const isTeacher = role === "TEACHER";
+
   return (
     <PageContainer>
       <PageHeader
-        title="Панель администратора"
-        description="Управление аудиториями и заявками на бронирование."
+        title={
+          isAdmin
+            ? "Панель администратора"
+            : "Заявки для рассмотрения"
+        }
+        description={
+          isAdmin
+            ? "Обзор системы и управление ресурсами университета."
+            : "Просматривайте назначенные вам заявки и принимайте решения по бронированию."
+        }
       />
-      <AdminView />
+
+      {isAdmin ? <AdminDashboard /> : <AdminView />}
     </PageContainer>
   );
 }

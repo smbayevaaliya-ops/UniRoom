@@ -3,6 +3,7 @@ import { WORKDAY_START, WORKDAY_END } from "@/lib/constants";
 
 export type BookingFormValues = {
   requester: string;
+  teacherId: string;
   room: string;
   date: string;
   start: string;
@@ -47,6 +48,10 @@ export function validateBookingForm(
     errors.requester = "Имя не должно превышать 80 символов.";
   }
 
+  if (!values.teacherId) {
+    errors.teacherId = "Выберите преподавателя.";
+  }
+
   if (!values.room) {
     errors.room = "Выберите аудиторию.";
   } else if (!bookableRooms.includes(values.room)) {
@@ -59,7 +64,10 @@ export function validateBookingForm(
     errors.date = "Нельзя бронировать на прошедшую дату.";
   }
 
-  const intervalError = validateInterval(values.start, values.end);
+  const intervalError = validateInterval(
+    values.start,
+    values.end,
+  );
 
   if (intervalError) {
     errors.end = intervalError;
