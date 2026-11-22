@@ -565,7 +565,7 @@ export default function AdminView({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {standalone && (
         <Link
           href="/admin"
@@ -577,7 +577,7 @@ export default function AdminView({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_24px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-[0_8px_30px_rgba(15,23,42,0.07)]">
             <p className="text-xs text-slate-500">
               {isTeacher ? "Мои заявки" : "Всего заявок"}
             </p>
@@ -586,7 +586,7 @@ export default function AdminView({
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_24px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-[0_8px_30px_rgba(15,23,42,0.07)]">
             <p className="text-xs text-slate-500">На рассмотрении</p>
             <p className="mt-1 text-2xl font-bold">
               {pendingCount}
@@ -594,7 +594,7 @@ export default function AdminView({
           </div>
 
           {isAdmin && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_4px_24px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-[0_8px_30px_rgba(15,23,42,0.07)]">
               <p className="text-xs text-slate-500">
                 Активные аудитории
               </p>
@@ -609,7 +609,7 @@ export default function AdminView({
           <button
             type="button"
             onClick={handleReset}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium hover:bg-slate-50"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-700 transition-colors hover:bg-slate-50 text-sm font-medium hover:bg-slate-50"
           >
             Сбросить демо-данные
           </button>
@@ -618,21 +618,21 @@ export default function AdminView({
 
       {isAdmin && (
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border bg-white p-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
             <p className="text-xs text-slate-500">Корпуса</p>
             <p className="mt-1 text-2xl font-bold">
               {buildings.length}
             </p>
           </div>
 
-          <div className="rounded-xl border bg-white p-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
             <p className="text-xs text-slate-500">Общая вместимость</p>
             <p className="mt-1 text-2xl font-bold">
               {totalCapacity}
             </p>
           </div>
 
-          <div className="rounded-xl border bg-white p-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
             <p className="text-xs text-slate-500">
               Компьютеры во всех аудиториях
             </p>
@@ -644,7 +644,7 @@ export default function AdminView({
       )}
 
       {isTeacher && (
-        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+        <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 shadow-sm">
           <p className="text-sm font-medium text-blue-900">
             {selectedTeacher
               ? `Вы вошли как преподаватель: ${selectedTeacher.name}`
@@ -663,8 +663,8 @@ export default function AdminView({
             onClick={() => setActiveTab("requests")}
             className={`rounded-xl px-4 py-2 text-sm font-medium ${
               activeTab === "requests"
-                ? "bg-blue-600 text-white"
-                : "bg-slate-100 text-slate-600"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
             }`}
           >
             Заявки
@@ -677,8 +677,8 @@ export default function AdminView({
                 onClick={() => setActiveTab("rooms")}
                 className={`rounded-xl px-4 py-2 text-sm font-medium ${
                   activeTab === "rooms"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-600"
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
                 Аудитории
@@ -689,8 +689,8 @@ export default function AdminView({
                 onClick={() => setActiveTab("buildings")}
                 className={`rounded-xl px-4 py-2 text-sm font-medium ${
                   activeTab === "buildings"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-600"
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
                 Корпуса
@@ -702,7 +702,7 @@ export default function AdminView({
 
       {activeTab === "requests" && (
         <div className="space-y-4">
-          <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-sm">
               Статус заявки
 
@@ -713,7 +713,7 @@ export default function AdminView({
                     event.target.value as "ALL" | BookingStatus,
                   )
                 }
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-700 shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
               >
                 <option value="ALL">Все статусы</option>
                 <option value="PENDING">На рассмотрении</option>
@@ -733,7 +733,7 @@ export default function AdminView({
                 onChange={(event) =>
                   setSelectedDate(event.target.value)
                 }
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-700 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
               />
             </label>
 
@@ -746,7 +746,7 @@ export default function AdminView({
                   setSelectedBuilding(event.target.value);
                   setSelectedRoomIds([]);
                 }}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-700 shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
               >
                 <option value="all">Все корпуса</option>
 
@@ -772,7 +772,7 @@ export default function AdminView({
                       | "room",
                   )
                 }
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2"
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-slate-700 shadow-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10"
               >
                 <option value="newest">Сначала новые</option>
                 <option value="oldest">Сначала старые</option>
@@ -816,7 +816,7 @@ export default function AdminView({
                         }
                         className={`rounded-lg border px-3 py-2 text-xs font-medium ${
                           selected
-                            ? "border-blue-600 bg-blue-600 text-white"
+                            ? "border-blue-600 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-600/20"
                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         }`}
                       >
@@ -848,9 +848,9 @@ export default function AdminView({
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-500">
+              <thead className="bg-slate-50/80 text-slate-500">
                 <tr>
                   <th className="p-4">Заявитель</th>
                   <th className="p-4">Аудитория</th>
@@ -875,7 +875,7 @@ export default function AdminView({
                   return (
                     <tr
                       key={item.id}
-                      className="border-t border-slate-100"
+                      className="border-t border-slate-100 transition-colors hover:bg-slate-50/70"
                     >
                       <td className="p-4 font-medium">
                         {item.requester}
@@ -1023,7 +1023,7 @@ export default function AdminView({
               onChange={(event) =>
                 setSelectedBuilding(event.target.value)
               }
-              className="rounded-xl border bg-white px-4 py-2 text-sm"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-slate-700 shadow-sm transition-colors hover:border-blue-300 text-sm"
             >
               <option value="all">Все корпуса</option>
 
@@ -1038,7 +1038,7 @@ export default function AdminView({
               type="button"
               onClick={openNewRoomForm}
               disabled={buildings.length === 0}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/25 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
               + Добавить аудиторию
             </button>
@@ -1047,7 +1047,7 @@ export default function AdminView({
           {showRoomForm && (
             <form
               onSubmit={saveRoom}
-              className="space-y-4 rounded-2xl border bg-white p-5"
+              className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
             >
               <h3 className="text-lg font-bold">
                 {editingRoomId
@@ -1069,7 +1069,7 @@ export default function AdminView({
                         number: event.target.value,
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3 disabled:bg-slate-100"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 disabled:bg-slate-100"
                   />
                 </label>
 
@@ -1085,7 +1085,7 @@ export default function AdminView({
                         name: event.target.value,
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   />
                 </label>
 
@@ -1102,7 +1102,7 @@ export default function AdminView({
                         floor: "1",
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3 disabled:bg-slate-100"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 disabled:bg-slate-100"
                   >
                     {buildings.map((building) => (
                       <option key={building.id} value={building.id}>
@@ -1123,7 +1123,7 @@ export default function AdminView({
                         floor: event.target.value,
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   >
                     {Array.from(
                       {
@@ -1156,7 +1156,7 @@ export default function AdminView({
                         capacity: event.target.value,
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   />
                 </label>
 
@@ -1172,7 +1172,7 @@ export default function AdminView({
                         type: event.target.value,
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   />
                 </label>
 
@@ -1190,7 +1190,7 @@ export default function AdminView({
                         computerCount: event.target.value,
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   />
                 </label>
 
@@ -1206,7 +1206,7 @@ export default function AdminView({
                       })
                     }
                     placeholder="Проектор, Доска, Компьютеры"
-                    className="mt-1 w-full rounded-xl border p-3"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   />
 
                   <span className="mt-1 block text-xs text-slate-500">
@@ -1229,7 +1229,7 @@ export default function AdminView({
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="rounded-xl bg-blue-600 px-5 py-2 text-sm text-white"
+                  className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/25 px-5 py-2 text-sm text-white"
                 >
                   Сохранить
                 </button>
@@ -1237,7 +1237,7 @@ export default function AdminView({
                 <button
                   type="button"
                   onClick={() => setShowRoomForm(false)}
-                  className="rounded-xl border px-5 py-2 text-sm"
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 font-medium text-slate-700 transition hover:bg-slate-50 text-sm"
                 >
                   Отмена
                 </button>
@@ -1249,7 +1249,7 @@ export default function AdminView({
             {visibleRooms.map((room) => (
               <div
                 key={room.id}
-                className="rounded-2xl border bg-white p-5"
+                className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
               >
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-lg font-bold">
@@ -1326,7 +1326,7 @@ export default function AdminView({
             <button
               type="button"
               onClick={openNewBuildingForm}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/25 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               + Добавить корпус
             </button>
@@ -1335,7 +1335,7 @@ export default function AdminView({
           {showBuildingForm && (
             <form
               onSubmit={saveBuilding}
-              className="space-y-4 rounded-2xl border bg-white p-5"
+              className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
             >
               <h3 className="text-lg font-bold">
                 {editingBuildingId
@@ -1356,7 +1356,7 @@ export default function AdminView({
                         name: event.target.value,
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   />
                 </label>
 
@@ -1374,7 +1374,7 @@ export default function AdminView({
                         floors: event.target.value,
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   />
                 </label>
 
@@ -1389,7 +1389,7 @@ export default function AdminView({
                         address: event.target.value,
                       })
                     }
-                    className="mt-1 w-full rounded-xl border p-3"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3.5 transition-colors focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   />
                 </label>
               </div>
@@ -1403,7 +1403,7 @@ export default function AdminView({
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="rounded-xl bg-blue-600 px-5 py-2 text-sm text-white"
+                  className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/25 px-5 py-2 text-sm text-white"
                 >
                   Сохранить
                 </button>
@@ -1411,7 +1411,7 @@ export default function AdminView({
                 <button
                   type="button"
                   onClick={() => setShowBuildingForm(false)}
-                  className="rounded-xl border px-5 py-2 text-sm"
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 font-medium text-slate-700 transition hover:bg-slate-50 text-sm"
                 >
                   Отмена
                 </button>
@@ -1452,7 +1452,7 @@ export default function AdminView({
               return (
                 <div
                   key={building.id}
-                  className="rounded-2xl border bg-white p-5"
+                  className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_4px_24px_rgba(15,23,42,0.04)]"
                 >
                   <h3 className="text-xl font-bold">
                     {building.name}
@@ -1549,8 +1549,8 @@ export default function AdminView({
       )}
 
       {editingBooking !== null && (isTeacher || isAdmin) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-2xl shadow-slate-950/20">
             <h3 className="text-lg font-bold">
               {commentAction === "REJECTED"
                 ? "Причина отклонения"
@@ -1568,7 +1568,7 @@ export default function AdminView({
               <button
                 type="button"
                 onClick={() => setEditingBooking(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm"
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-700 transition-colors hover:bg-slate-50 text-sm"
               >
                 Отмена
               </button>
@@ -1576,7 +1576,7 @@ export default function AdminView({
               <button
                 type="button"
                 onClick={submitComment}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white"
+                className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-600/20 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-600/25 px-4 py-2 text-sm text-white"
               >
                 Подтвердить
               </button>
